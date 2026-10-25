@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="ms">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Laporan Lawatan Tapak</title>
+<meta name="theme-color" content="#1D1E1C">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<style>
+/* Laporan Lawatan Tapak — JPN Kedah (S4PD)
+   Satu lajur untuk kerja lapangan: PIN → senarai projek → borang berpapan tanda, satu kad setiap Perkara, bar tindakan di ibu jari. */
+:root{
+  --bg:#F1F0EE; --surface:#FFFFFF; --sunk:#E7E5E1; --ink:#1D1E1C; --muted:#67655F; --line:#D8D5CF;
+  --accent:#D9531B; --accent-ink:#A93D0E; --accent-soft:#FBE7DC;
+  --board:#1D1E1C; --board-ink:#F6F4F0;
+  --ok:#2E7A4C; --ok-soft:#DFF0E5; --bad:#B3262E; --bad-soft:#F8DEDF; --na:#7A7872; --na-soft:#E9E7E3;
+  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --body:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px; color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#151614; --surface:#1F201E; --sunk:#2A2B28; --ink:#ECEAE5; --muted:#A29F98; --line:#363733;
+  --accent:#FF7A3C; --accent-ink:#FF9A68; --accent-soft:#3B2418; --board:#0C0D0C; --board-ink:#F6F4F0;
+  --ok:#5CC287; --ok-soft:#1C3326; --bad:#F06A70; --bad-soft:#3A1E20; --na:#A29F98; --na-soft:#2C2D2A; color-scheme:dark}}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.5;-webkit-font-smoothing:antialiased;padding-top:env(safe-area-inset-top,0px)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+img{max-width:100%}
+[hidden]{display:none!important}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.wrap{max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 130px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--display);font-weight:700;letter-spacing:.01em;margin:0;text-wrap:balance;line-height:1.1}
+
+/* login */
+.login{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));gap:18px}
+.login .board{width:100%;max-width:380px;margin:0}
+.login .board h1{font-size:2.1rem;text-transform:uppercase;color:var(--board-ink)}
+.login form{width:100%;max-width:380px;display:flex;flex-direction:column;gap:16px}
+.dots{display:flex;justify-content:center;gap:16px;padding:6px 0}
+.dots i{width:18px;height:18px;border-radius:50%;border:2px solid var(--muted);display:block}
+.dots i.on{background:var(--accent);border-color:var(--accent)}
+.dots.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.pad button{height:62px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-family:var(--display);font-size:1.8rem;font-weight:600}
+.pad button:active{background:var(--sunk)}
+.pad .fn{font-family:var(--body);font-size:.95rem;font-weight:700;color:var(--muted)}
+.err{color:var(--bad);font-weight:600;text-align:center;min-height:1.5em;font-size:.92rem}
+.foot{font-size:.78rem;color:var(--muted);text-align:center}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);padding-block:14px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.top h1{font-size:1.7rem;text-transform:uppercase}
+.sub{font-size:.78rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;font-weight:600}
+.grow{flex:1;min-width:0}
+.iconbtn{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface);flex-shrink:0;color:var(--ink);text-decoration:none}
+.iconbtn svg{width:20px;height:20px}
+.sync{display:flex;align-items:center;gap:8px;font-size:.8rem;color:var(--muted);margin-top:10px;flex-wrap:wrap}
+.sync .dot{width:9px;height:9px;border-radius:50%;background:var(--ok);flex-shrink:0}
+.sync.wait .dot{background:var(--accent)} .sync.off .dot{background:var(--bad)}
+.sync .who{margin-left:auto}
+.linkbtn{background:none;border:0;padding:0;color:var(--accent-ink);font-weight:700;text-decoration:underline;text-underline-offset:2px}
+
+/* tally & filter */
+.tally{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.tally button{border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:10px 8px;text-align:left;display:flex;flex-direction:column;gap:2px;min-width:0}
+.tally b{font-family:var(--display);font-size:1.95rem;line-height:1;font-variant-numeric:tabular-nums}
+.tally span{font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tally button[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.tally .t-selesai b{color:var(--ok)} .tally .t-draf b{color:var(--accent-ink)}
+.filters{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.filters input,.filters select{height:48px;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:0 12px;min-width:0}
+.filters input{flex:1 1 220px} .filters select{flex:0 1 190px}
+
+/* list */
+.list{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.proj{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:start;width:100%;border:1px solid var(--line);background:var(--surface);border-radius:var(--r);padding:14px;color:inherit;text-decoration:none}
+.proj:hover{border-color:var(--muted)}
+.proj .meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:.8rem;color:var(--muted);min-width:0}
+.chip{font-family:var(--mono);font-size:.78rem;font-weight:600;padding:2px 7px;border-radius:6px;background:var(--sunk);color:var(--ink)}
+.proj .nm{font-family:var(--display);font-weight:600;font-size:1.28rem;line-height:1.15;text-transform:uppercase;grid-column:1;min-width:0}
+.proj .jenis{font-size:.84rem;color:var(--muted);grid-column:1}
+.pill{font-size:.72rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 9px;border-radius:999px;white-space:nowrap;grid-column:2;grid-row:1}
+.pill.belum{background:var(--na-soft);color:var(--na)} .pill.draf{background:var(--accent-soft);color:var(--accent-ink)} .pill.selesai{background:var(--ok-soft);color:var(--ok)}
+.bar{grid-column:1/-1;display:flex;align-items:center;gap:10px;font-size:.78rem;color:var(--muted)}
+.bar i{flex:1;height:5px;border-radius:3px;background:var(--sunk);overflow:hidden;display:block}
+.bar i::after{content:"";display:block;height:100%;width:var(--w,0%);background:var(--accent)}
+.bar .act{color:var(--bad);font-weight:700}
+.empty{padding:28px 16px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:var(--r)}
+.banner{margin-top:12px;font-size:.88rem;padding:12px;border-radius:8px;background:var(--accent-soft);color:var(--accent-ink)}
+
+/* signboard */
+.board{margin-top:14px;background:var(--board);color:var(--board-ink);border-radius:var(--r);overflow:hidden}
+.board .in{padding:16px 16px 14px;display:flex;flex-direction:column;gap:10px}
+.eyebrow{font-size:.74rem;letter-spacing:.14em;text-transform:uppercase;font-weight:700;color:#F3A07A}
+.board h2{font-size:1.5rem;text-transform:uppercase;font-weight:600;line-height:1.15}
+.board dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:4px 0 0;font-size:.92rem}
+.board dt{color:#B7B3AB;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;padding-top:2px}
+.board dd{margin:0;font-weight:600;min-width:0}
+.hazard{height:8px;background:repeating-linear-gradient(-45deg,#E8641F 0 12px,#1D1E1C 12px 24px)}
+
+/* form */
+.visit{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:.75rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.field input,.field select,textarea{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px 12px;min-height:48px;width:100%}
+.upd{font-size:.82rem;color:var(--muted);margin-top:8px}
+.group{margin-top:24px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.group h3{font-size:1.3rem;text-transform:uppercase}
+.group span{font-size:.84rem;color:var(--muted)}
+.cards{display:flex;flex-direction:column;gap:12px;margin-top:12px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
+.card[data-st="tindakan"]{border-left:5px solid var(--bad)} .card[data-st="ok"]{border-left:5px solid var(--ok)} .card[data-st="tb"]{border-left:5px solid var(--na)}
+.card .hd{display:flex;gap:10px;align-items:flex-start}
+.num{font-family:var(--display);font-weight:700;font-size:1.12rem;min-width:36px;height:36px;border-radius:8px;background:var(--sunk);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.card h4{margin:0;font-size:1.05rem;font-weight:700;line-height:1.3}
+.hint{font-size:.84rem;color:var(--muted)}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--surface);padding:11px 4px;font-size:.84rem;font-weight:600;color:var(--muted);border-left:1px solid var(--line)}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"][data-v="ok"]{background:var(--ok-soft);color:var(--ok)}
+.seg button[aria-pressed="true"][data-v="tindakan"]{background:var(--bad-soft);color:var(--bad)}
+.seg button[aria-pressed="true"][data-v="tb"]{background:var(--na-soft);color:var(--ink)}
+textarea{resize:vertical;min-height:88px;line-height:1.45}
+.photos{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.ph{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--sunk);border:0;padding:0;max-width:100%}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .q{position:absolute;left:4px;bottom:4px;font-size:.66rem;font-weight:700;background:rgba(0,0,0,.65);color:#fff;padding:2px 6px;border-radius:4px;letter-spacing:.03em}
+.ph.busy::after{content:"";position:absolute;inset:0;margin:auto;width:24px;height:24px;border:3px solid rgba(255,255,255,.5);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.shoot{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.shoot label{display:flex;align-items:center;justify-content:center;gap:8px;height:50px;border-radius:8px;font-weight:700;font-size:.95rem;cursor:pointer;user-select:none;position:relative}
+.shoot .cam{background:var(--accent);color:#fff}
+.shoot .gal{border:1px solid var(--line);background:var(--surface)}
+.shoot svg{width:20px;height:20px}
+.shoot input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.shoot label:focus-within{outline:3px solid var(--accent);outline-offset:2px}
+
+/* action bar */
+.actions{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--surface);border-top:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.actions .in{max-width:760px;margin:0 auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.save{font-size:.82rem;color:var(--muted);flex:1 1 120px;min-width:0}
+.save b{color:var(--ink)}
+.btn{height:46px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:700;font-size:.9rem;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;color:var(--ink)}
+.btn.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.btn.done{background:var(--ok);color:#fff;border-color:var(--ok)}
+.btn.wa{background:#1F8F4E;color:#fff;border-color:#1F8F4E}
+.btn:disabled{opacity:.55;cursor:default}
+.btn svg{width:18px;height:18px}
+
+/* overlays */
+.ov{position:fixed;inset:0;z-index:40;background:rgba(10,10,9,.92);display:flex;flex-direction:column;padding:calc(12px + env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.ov .img{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+.ov img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px}
+.ov img.loading{filter:blur(6px);opacity:.7}
+.ov .bt{display:flex;gap:8px;justify-content:space-between;padding-top:12px;flex-wrap:wrap}
+.ov .btn{background:#2A2B28;color:#F6F4F0;border-color:#44453F}
+.ov .btn.danger{background:#B3262E;border-color:#B3262E}
+.ov .cap{color:#C8C4BC;font-size:.84rem;align-self:center}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(10,10,9,.6);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--surface);width:100%;max-width:560px;border-radius:14px 14px 0 0;padding:18px max(16px,env(safe-area-inset-right,0px)) calc(18px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:12px;max-height:90dvh;overflow:auto}
+.sheet h3{font-size:1.45rem;text-transform:uppercase}
+.sheet .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.9rem;font-weight:600;max-width:calc(100% - 32px);text-align:center}
+@media (max-width:420px){.visit{grid-template-columns:1fr}.tally b{font-size:1.6rem}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="layer"></div>
+
+<script>
+/* ======================= KONFIGURASI ======================= */
+const API_URL = ""; // ← Tampal URL Web App (/exec) daripada Code.gs di sini
+const APP_VER = "1.0.0";
+
+/* ======================= DATA BORANG ======================= */
+const PPD_KEDAH=["Baling","Bandar Baharu","Kota Setar","Kuala Muda","Kubang Pasu","Kulim","Langkawi","Padang Terap","Pendang","Pokok Sena","Sik","Yan"];
+const PERKARA=[
+ {k:"laluan_masuk",t:"Laluan Masuk Tapak Projek",n:"1"},
+ {k:"laluan_bomba",t:"Laluan Bomba",n:"2"},
+ {k:"struktur",t:"Perubahan Struktur",h:"Pencawang, dll",n:"3"},
+ {k:"tnb",t:"Utiliti – Elektrik",h:"TNB",n:"4"},
+ {k:"sada",t:"Utiliti – Air",h:"SADA",n:"5"},
+ {k:"iwk",t:"Utiliti – Kumbahan",h:"IWK",n:"6"},
+ {k:"pili_bomba",t:"Pili Bomba",n:"7"},
+ {k:"discharge",t:"Discharge Area",n:"8"},
+ {k:"perobohan",t:"Keperluan Perobohan",h:"Pondok pengawal, laluan berbumbung, signage, dll",n:"9"},
+ {k:"sur_bd",t:"Bilik Darjah Sementara",g:1,n:"10a"},
+ {k:"sur_tandas",t:"Tandas Sementara",g:1,n:"10b"},
+ {k:"sur_makan",t:"Ruang Makan Sementara",g:1,n:"10c"},
+ {k:"sur_lain",t:"Lain-lain",h:"Nyatakan",g:1,n:"10d",other:1},
+];
+const STATUS={ok:"Tiada isu",tindakan:"Perlu tindakan",tb:"Tidak berkaitan"};
+const ICON={
+ cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>',
+ gal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>',
+ back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>',
+ pdf:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M12 12v6m-3-3 3 3 3-3"/></svg>',
+ copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg>',
+ check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+ sync:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16m0 4v-4h-4"/></svg>',
+};
+
+/* ======================= UTILITI ======================= */
+const $=(s,r=document)=>r.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const clone=o=>JSON.parse(JSON.stringify(o||{}));
+function merge(a,b){for(const k in b){const v=b[k];if(v&&typeof v==="object"&&!Array.isArray(v)){if(!a[k]||typeof a[k]!=="object"||Array.isArray(a[k]))a[k]={};merge(a[k],v)}else a[k]=v}return a}
+const today=()=>{const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const fmtDate=s=>{if(!s)return"—";const[y,m,d]=String(s).split("-");return d?`${d}/${m}/${y}`:s};
+const fmtTime=ms=>new Date(ms).toLocaleString("ms-MY",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"});
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,6);
+const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+async function sha256(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+let toastT;function toast(m){let t=$(".toast");if(!t){t=document.createElement("div");t.className="toast";t.setAttribute("role","status");document.body.appendChild(t)}t.textContent=m;clearTimeout(toastT);toastT=setTimeout(()=>t.remove(),3400)}
+
+/* IndexedDB: barisan gambar yang belum dimuat naik (selamat jika talian terputus) */
+const qdb=(()=>{let p,mem=new Map();
+  const open=()=>p||(p=new Promise((res,rej)=>{try{const r=indexedDB.open("llt",1);r.onupgradeneeded=()=>r.result.createObjectStore("q",{keyPath:"qid"});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}}));
+  const run=(mode,fn)=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction("q",mode);const rq=fn(t.objectStore("q"));t.oncomplete=()=>res(rq&&rq.result);t.onerror=()=>rej(t.error)}));
+  return{
+    put:v=>run("readwrite",s=>s.put(v)).catch(()=>{mem.set(v.qid,v)}),
+    del:k=>run("readwrite",s=>s.delete(k)).catch(()=>{mem.delete(k)}),
+    all:()=>run("readonly",s=>s.getAll()).then(a=>[...(a||[]),...mem.values()]).catch(()=>[...mem.values()])};
+})();
+
+/* ======================= KEADAAN ======================= */
+let auth=store.get("llt.auth",null);            // {token, exp, nama}
+let cache=store.get("llt.cache",{projects:[],reports:{},photoCounts:{},at:0});
+let outbox=store.get("llt.outbox",{});           // pid -> patch belum dihantar
+let queue=[];                                    // gambar belum dimuat naik
+let photos={};                                   // pid -> [{id,k,thumb,t,by}]
+let fullCache=new Map();                         // id -> dataURL saiz penuh
+let view={screen:"list",pid:null};
+let filt={st:"semua",q:"",ppd:""};
+let online=navigator.onLine, syncing=false, lastErr="";
+let pinBuf="";
+
+/* ======================= API ======================= */
+async function api(action,data={}){
+  if(!API_URL){const e=new Error("API_URL belum ditetapkan dalam index.html.");e.config=true;throw e}
+  let res;
+  try{res=await fetch(API_URL,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({action,token:auth&&auth.token,nama:auth&&auth.nama,...data}),redirect:"follow"})}
+  catch(e){const x=new Error("Tiada talian internet.");x.net=true;throw x}
+  let j; try{j=await res.json()}catch(e){const x=new Error("Pelayan tidak memberi respons yang sah.");x.net=true;throw x}
+  if(!j.ok){const x=new Error(j.error||"Ralat pelayan.");x.server=true;if(j.error==="SESI_TAMAT"){x.session=true;sessionEnded()}throw x}
+  return j;
+}
+function sessionEnded(){auth=null;store.del("llt.auth");renderLogin("Sesi tamat. Masukkan PIN semula. Data yang belum dihantar masih selamat.")}
+
+/* ======================= LOGIN ======================= */
+function renderLogin(msg){
+  pinBuf="";
+  const nama=(store.get("llt.nama","")||"");
+  $("#layer").innerHTML="";
+  $("#app").innerHTML=`<main class="login">
+    <div class="board"><div class="in"><div class="eyebrow">JPN Kedah · Projek Pembangunan</div><h1>Laporan Lawatan Tapak</h1></div><div class="hazard"></div></div>
+    <form id="lf" autocomplete="off">
+      <div class="field"><label for="nama">Nama pegawai</label><input id="nama" type="text" required placeholder="Nama penuh anda" value="${esc(nama)}" autocomplete="name"></div>
+      <div><div class="field"><label>PIN</label></div><div class="dots" id="dots">${"<i></i>".repeat(4)}</div></div>
+      <div class="pad" id="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button type="button" data-n="${n}">${n}</button>`).join("")}<button type="button" class="fn" data-n="del">Padam</button><button type="button" data-n="0">0</button><button type="submit" class="fn">Masuk</button></div>
+      <div class="err" id="lerr" role="alert">${esc(msg||"")}</div>
+    </form>
+    <div class="foot">Sektor Perancangan &amp; Pengurusan PPD · v${APP_VER}</div>
+  </main>`;
+  const dots=()=>$("#dots").querySelectorAll("i").forEach((d,i)=>d.classList.toggle("on",i<pinBuf.length));
+  const press=n=>{if(n==="del")pinBuf=pinBuf.slice(0,-1);else if(pinBuf.length<4)pinBuf+=n;dots();if(pinBuf.length===4)doLogin()};
+  $("#pad").onclick=e=>{const b=e.target.closest("button[data-n]");if(b)press(b.dataset.n)};
+  $("#lf").onsubmit=e=>{e.preventDefault();doLogin()};
+  document.onkeydown=e=>{if(!$("#pad")||e.target.id==="nama")return;if(/^\d$/.test(e.key))press(e.key);else if(e.key==="Backspace")press("del")};
+}
+async function doLogin(){
+  const nama=$("#nama").value.trim(), err=$("#lerr");
+  if(!nama){err.textContent="Isi nama pegawai dahulu.";$("#nama").focus();return}
+  if(pinBuf.length<4){err.textContent="Masukkan 4 digit PIN.";return}
+  err.textContent="Mengesahkan…";
+  try{
+    const j=await api("login",{pinHash:await sha256(pinBuf),nama});
+    auth={token:j.token,exp:Date.now()+j.hours*3600e3,nama};store.set("llt.auth",auth);store.set("llt.nama",nama);
+    document.onkeydown=null; startApp();
+  }catch(e){pinBuf="";$("#dots").querySelectorAll("i").forEach(d=>d.classList.remove("on"));const d=$("#dots");d.classList.remove("shake");void d.offsetWidth;d.classList.add("shake");err.textContent=e.message}
+}
+
+/* ======================= PENYEGERAKAN ======================= */
+function persistOutbox(){store.set("llt.outbox",outbox)}
+function persistCache(){store.set("llt.cache",cache)}
+function report(pid){const base=clone(cache.reports[pid]||null);const p=outbox[pid];if(!base&&!p)return null;return merge(base||{pid,tarikh:"",pegawai:"",lain:"",status:"draf",items:{}},clone(p||{}))}
+function item(r,k){return(r&&r.items&&r.items[k])||{}}
+function photoList(pid){return[...(photos[pid]||[]),...queue.filter(q=>q.pid===pid).map(q=>({id:q.qid,k:q.k,thumb:q.thumb,t:q.t,queued:true,busy:q.busy}))]}
+function photoCount(pid,k){if(photos[pid])return photoList(pid).filter(p=>p.k===k).length;return((cache.photoCounts[pid]||{})[k]||0)+queue.filter(q=>q.pid===pid&&q.k===k).length}
+function filled(pid,r,k){const it=item(r,k);return!!(it.s||(it.c&&it.c.trim())||photoCount(pid,k))}
+function progress(pid){const r=report(pid);let n=0,a=0;PERKARA.forEach(p=>{if(filled(pid,r,p.k))n++;if(item(r,p.k).s==="tindakan")a++});return{n,a,tot:PERKARA.length}}
+function statusOf(pid){const r=report(pid);if(r&&r.status==="selesai")return"selesai";return(r&&r.tarikh)||progress(pid).n?"draf":"belum"}
+const pendingCount=()=>Object.keys(outbox).length+queue.length;
+
+let flushT;
+function patch(pid,p,delay=900){
+  const r=report(pid);
+  if(!(r&&r.tarikh)&&p.tarikh===undefined){const t=$("#tarikh");if(t&&t.value)p={...p,tarikh:t.value}}
+  outbox[pid]=merge(outbox[pid]||{},clone(p));persistOutbox();
+  updateSync();clearTimeout(flushT);flushT=setTimeout(sync,delay);
+}
+async function sync(){
+  if(syncing||!auth)return; syncing=true; updateSync();
+  try{
+    for(const pid of Object.keys(outbox)){
+      const sent=outbox[pid]; delete outbox[pid]; persistOutbox();
+      try{const j=await api("savePatch",{pid,patch:sent});cache.reports[pid]=j.report;persistCache();lastErr=""}
+      catch(e){outbox[pid]=merge(clone(sent),outbox[pid]||{});persistOutbox();if(e.net){online=false;break}if(e.session)break;lastErr=e.message;break}
+    }
+    for(const q of queue.slice()){
+      if(!auth)break; q.busy=true; renderPhotos(q.k);
+      try{
+        const j=await api("uploadPhoto",{qid:q.qid,pid:q.pid,k:q.k,full:q.full,thumb:q.thumb,t:q.t});
+        await qdb.del(q.qid); queue=queue.filter(x=>x.qid!==q.qid); fullCache.set(j.photo.id,q.full);
+        if(photos[q.pid])photos[q.pid].push(j.photo);
+        const pc=cache.photoCounts[q.pid]=cache.photoCounts[q.pid]||{};pc[q.k]=(pc[q.k]||0)+1;persistCache();online=true;lastErr="";
+      }catch(e){q.busy=false;if(e.net){online=false;break}if(e.session)break;q.fails=(q.fails||0)+1;lastErr="Gambar gagal dihantar: "+e.message;if(q.fails>=3)break}
+      renderPhotos(q.k);
+    }
+    if(!pendingCount())online=true;
+  }finally{syncing=false;updateSync();if(view.screen==="list")renderList();else applyState(view.pid)}
+}
+function updateSync(){
+  const el=$("#sync");if(!el)return;const n=pendingCount();
+  el.className="sync"+(n?(online?" wait":" off"):"");
+  const msg=syncing?"Menghantar…":n?(online?`${n} perubahan menunggu dihantar`:`Tiada talian · ${n} perubahan disimpan dalam telefon`):"Semua data disegerakkan";
+  el.querySelector(".msg").textContent=lastErr&&!syncing?lastErr:msg;
+  const s=$("#savestate");if(s)s.innerHTML=n?(syncing?"Menghantar…":online?"Belum dihantar":"<b>Disimpan dalam telefon</b> · dihantar bila ada talian"):"<b>Disimpan</b> ke sistem";
+}
+window.addEventListener("online",()=>{online=true;sync()});
+window.addEventListener("offline",()=>{online=false;updateSync()});
+setInterval(()=>{if(pendingCount()&&!syncing&&auth)sync()},20000);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&auth){sync();if(view.screen==="form")refreshReport(view.pid,true)}});
+
+async function loadAll(){
+  try{const j=await api("getAll");cache={projects:j.projects,reports:j.reports,photoCounts:j.photoCounts,at:Date.now()};persistCache();online=true}
+  catch(e){if(e.net)online=false;else if(!e.session)toast(e.message)}
+  if(auth)rerender();
+}
+async function refreshReport(pid,quiet){
+  try{const j=await api("getReport",{pid});if(j.report)cache.reports[pid]=j.report;else delete cache.reports[pid];photos[pid]=j.photos;
+    const pc={};j.photos.forEach(p=>pc[p.k]=(pc[p.k]||0)+1);cache.photoCounts[pid]=pc;persistCache();online=true;
+    if(view.screen==="form"&&view.pid===pid)applyState(pid)}
+  catch(e){if(e.net)online=false;else if(!quiet&&!e.session)toast(e.message);updateSync()}
+}
+
+/* ======================= GAMBAR ======================= */
+function loadImg(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src})}
+function drawTo(img,max,q){const sc=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*sc);c.height=Math.round(img.naturalHeight*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return c}
+async function processImage(file,label){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await loadImg(url);
+    const c=drawTo(img,1600),x=c.getContext("2d"),w=c.width,h=c.height;
+    const fs=Math.max(14,Math.round(Math.min(w,h)*0.032)),pad=Math.round(fs*.6);
+    x.fillStyle="rgba(0,0,0,.55)";x.fillRect(0,h-fs-pad*2,w,fs+pad*2);
+    x.fillStyle="#fff";x.font=`600 ${fs}px system-ui,sans-serif`;x.textBaseline="middle";
+    let txt=`${label} · ${fmtTime(file.lastModified||Date.now())}`;while(x.measureText(txt).width>w-pad*2&&txt.length>12)txt=txt.slice(0,-2);
+    x.fillText(txt,pad,h-pad-fs/2);
+    const full=c.toDataURL("image/jpeg",0.8);
+    const stamped=await loadImg(full);let thumb=drawTo(stamped,360).toDataURL("image/jpeg",0.62);
+    if(thumb.length>45000)thumb=drawTo(stamped,240).toDataURL("image/jpeg",0.5);
+    return{full,thumb};
+  }finally{URL.revokeObjectURL(url)}
+}
+async function addPhotos(pid,k,files){
+  const P=proj(pid),per=PERKARA.find(x=>x.k===k);
+  for(const f of files){
+    if(!f.type.startsWith("image/")){toast("Hanya fail gambar diterima.");continue}
+    try{
+      const {full,thumb}=await processImage(f,`${P.kod||P.id} · ${per.n}. ${per.t}`);
+      const q={qid:uid(),pid,k,full,thumb,t:Date.now()};
+      await qdb.put(q);queue.push(q);renderPhotos(k);refreshCard(k);updateSync();
+    }catch(e){toast("Gambar tidak dapat diproses. Cuba ambil semula.")}
+  }
+  sync();
+}
+async function getFull(p){
+  if(p.queued){const q=queue.find(x=>x.qid===p.id);return q&&q.full}
+  if(fullCache.has(p.id))return fullCache.get(p.id);
+  const j=await api("getPhoto",{id:p.id});
+  if(fullCache.size>40)fullCache.delete(fullCache.keys().next().value);
+  fullCache.set(p.id,j.data);return j.data;
+}
+async function deletePhoto(pid,p){
+  if(p.queued){await qdb.del(p.id);queue=queue.filter(q=>q.qid!==p.id)}
+  else{
+    try{await api("deletePhoto",{id:p.id})}catch(e){toast(e.net?"Perlu talian internet untuk memadam gambar yang sudah dihantar.":e.message);return false}
+    photos[pid]=(photos[pid]||[]).filter(x=>x.id!==p.id);fullCache.delete(p.id);
+    const pc=cache.photoCounts[pid];if(pc&&pc[p.k])pc[p.k]--;persistCache();
+  }
+  renderPhotos(p.k);refreshCard(p.k);updateSync();return true;
+}
+
+/* ======================= PROJEK ======================= */
+const projects=()=>cache.projects||[];
+const proj=id=>projects().find(p=>p.id===id);
+function jenis(n){n=String(n).toUpperCase();const y=(n.match(/DAIF KEDAH \((\d{4})\)/)||[])[1];
+ if(y)return"Bangunan Daif "+y;if(n.includes("PEROLEHAN TANAH"))return"Perolehan Tanah";if(n.includes("KOMPLEKS"))return"Kompleks Sekolah Baharu";
+ if(n.includes("KOKURIKULUM"))return"Pusat Kokurikulum";if(n.includes("PEJABAT PENDIDIKAN"))return"Bangunan PPD";if(n.includes("DEWAN"))return"Dewan Sekolah";
+ if(n.includes("PADANG SEKOLAH"))return"Padang Sekolah";if(n.includes("TAMBAHAN"))return"Bangunan Tambahan";return"Projek Pembangunan"}
+
+/* ======================= SENARAI ======================= */
+function topSync(){return`<div class="sync" id="sync"><span class="dot"></span><span class="msg"></span><span class="who">${esc(auth.nama)} · <button class="linkbtn" id="logout">Log keluar</button></span></div>`}
+function bindTop(){const l=$("#logout");if(l)l.onclick=()=>{if(pendingCount()&&!confirmLeave)return askLogout();doLogout()};updateSync()}
+let confirmLeave=false;
+function askLogout(){const L=$("#layer");L.innerHTML=`<div class="modal"><div class="sheet"><h3>Log keluar?</h3><p style="margin:0">Ada ${pendingCount()} perubahan yang belum dihantar. Ia kekal dalam telefon ini dan akan dihantar selepas anda log masuk semula.</p><div class="row"><button class="btn" id="lx">Batal</button><button class="btn primary" id="ly">Log keluar</button></div></div></div>`;$("#lx").onclick=()=>L.innerHTML="";$("#ly").onclick=()=>{L.innerHTML="";doLogout()}}
+function doLogout(){auth=null;store.del("llt.auth");location.hash="";renderLogin()}
+
+function renderList(){
+  const ps=projects();
+  const c={semua:ps.length,belum:0,draf:0,selesai:0};ps.forEach(p=>c[statusOf(p.id)]++);
+  const ppds=[...new Set([...PPD_KEDAH,...ps.map(p=>p.ppd).filter(Boolean)])].sort();
+  const q=filt.q.trim().toUpperCase();
+  const rows=ps.filter(p=>(filt.st==="semua"||statusOf(p.id)===filt.st)&&(!filt.ppd||p.ppd===filt.ppd)&&(!q||(p.kod+" "+p.sekolah+" "+p.nama+" "+p.ppd).toUpperCase().includes(q)));
+  const focusQ=document.activeElement&&document.activeElement.id==="q",pos=focusQ?$("#q").selectionStart:0;
+  $("#app").innerHTML=`<div class="wrap">
+    <header class="top"><div class="grow"><h1>Laporan Lawatan Tapak</h1><div class="sub">Projek Pembangunan · JPN Kedah</div></div>
+      <button class="iconbtn" id="reload" aria-label="Muat semula data">${ICON.sync}</button></header>
+    ${topSync()}
+    ${!API_URL?`<div class="banner">Sistem belum disambung. Tampal URL Web App Code.gs ke dalam pemboleh ubah API_URL di index.html.</div>`:""}
+    ${!ps.length?`<div class="list"><div class="empty">${API_URL?"Memuatkan senarai projek…":"Tiada data."}</div></div>`:`
+    <div class="tally" role="group" aria-label="Tapis status">
+      ${[["semua","Semua"],["belum","Belum"],["draf","Draf"],["selesai","Selesai"]].map(([v,l])=>`<button class="t-${v}" data-st="${v}" aria-pressed="${filt.st===v}"><b>${c[v]}</b><span>${l}</span></button>`).join("")}
+    </div>
+    <div class="filters">
+      <input id="q" type="search" placeholder="Cari kod, sekolah atau projek" value="${esc(filt.q)}" aria-label="Cari">
+      <select id="ppd" aria-label="PPD"><option value="">Semua PPD</option>${ppds.map(p=>`<option ${p===filt.ppd?"selected":""}>${esc(p)}</option>`).join("")}</select>
+    </div>
+    <div class="list">
+      ${rows.length?rows.map(p=>{const st=statusOf(p.id),r=report(p.id),pr=progress(p.id);
+        return`<a class="proj" href="#${encodeURIComponent(p.id)}">
+          <div class="meta">${p.kod?`<span class="chip">${esc(p.kod)}</span>`:""}<span>PPD ${esc(p.ppd||"—")}</span>${r&&r.tarikh?`<span>· Lawatan ${fmtDate(r.tarikh)}</span>`:""}</div>
+          <span class="pill ${st}">${st==="belum"?"Belum dilawat":st==="draf"?"Draf":"Selesai"}</span>
+          <div class="nm">${esc(p.sekolah)}</div>
+          <div class="jenis">${esc(jenis(p.nama))}</div>
+          <div class="bar"><i style="--w:${Math.round(pr.n/pr.tot*100)}%"></i><span class="mono">${pr.n}/${pr.tot}</span>${pr.a?`<span class="act">${pr.a} perlu tindakan</span>`:""}</div>
+        </a>`}).join(""):`<div class="empty">Tiada projek sepadan dengan carian ini.</div>`}
+    </div>
+    <button class="btn" id="addproj" style="margin-top:14px">+ Tambah projek</button>`}
+  </div>`;
+  bindTop();
+  $("#reload").onclick=()=>{toast("Memuat semula…");sync().then(loadAll)};
+  if(!ps.length)return;
+  $(".tally").onclick=e=>{const b=e.target.closest("button");if(!b)return;filt.st=b.dataset.st;renderList()};
+  $("#q").oninput=e=>{filt.q=e.target.value;renderList()};
+  $("#ppd").onchange=e=>{filt.ppd=e.target.value;renderList()};
+  $("#addproj").onclick=openAddProject;
+  if(focusQ){const qq=$("#q");qq.focus();try{qq.setSelectionRange(pos,pos)}catch(e){}}
+}
+
+/* ======================= BORANG ======================= */
+function renderForm(pid){
+  const P=proj(pid);if(!P){location.hash="";return}
+  const card=p=>`<section class="card" id="c-${p.k}" data-k="${p.k}">
+      <div class="hd"><div class="num">${p.n}</div><div><h4>${esc(p.t)}</h4>${p.h&&!p.other?`<div class="hint">${esc(p.h)}</div>`:""}</div></div>
+      ${p.other?`<div class="field"><label for="lain">Nyatakan</label><input id="lain" type="text" placeholder="Contoh: stor sementara, bilik guru sementara"></div>`:""}
+      <div class="seg" role="group" aria-label="Status ${esc(p.t)}">${Object.entries(STATUS).map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="false">${l}</button>`).join("")}</div>
+      <textarea id="t-${p.k}" data-k="${p.k}" placeholder="Catatan pemerhatian di tapak" aria-label="Catatan ${esc(p.t)}"></textarea>
+      <div class="photos" id="p-${p.k}" hidden></div>
+      <div class="shoot">
+        <label class="cam">${ICON.cam}Ambil gambar<input type="file" accept="image/*" capture="environment" data-k="${p.k}"></label>
+        <label class="gal">${ICON.gal}Galeri<input type="file" accept="image/*" multiple data-k="${p.k}"></label>
+      </div>
+    </section>`;
+  $("#app").innerHTML=`<div class="wrap">
+    <header class="top"><a class="iconbtn" href="#" aria-label="Kembali ke senarai">${ICON.back}</a>
+      <div class="grow"><div class="sub">${P.kod?esc(P.kod)+" · ":""}PPD ${esc(P.ppd||"—")}</div><h1 style="font-size:1.3rem">${esc(P.sekolah)}</h1></div></header>
+    ${topSync()}
+    <div class="board"><div class="in">
+      <div class="eyebrow">Laporan Lawatan Tapak Projek</div>
+      <h2>${esc(P.nama)}</h2>
+      <dl><dt>Kod Sekolah</dt><dd class="mono">${esc(P.kod||"—")}</dd><dt>Nama Sekolah</dt><dd>${esc(P.sekolah)}</dd><dt>PPD</dt><dd>${esc(P.ppd||"—")}</dd></dl>
+    </div><div class="hazard"></div></div>
+    <div class="visit">
+      <div class="field"><label for="tarikh">Tarikh lawatan</label><input id="tarikh" type="date"></div>
+      <div class="field"><label for="pegawai">Pegawai / ahli lawatan</label><input id="pegawai" type="text" placeholder="Nama pegawai, JKR, kontraktor"></div>
+    </div>
+    <div class="upd" id="upd"></div>
+    <div class="cards">${PERKARA.filter(p=>!p.g).map(card).join("")}</div>
+    <div class="group"><h3>10 · Penyuraian</h3><span>Kemudahan sementara semasa pembinaan</span></div>
+    <div class="cards">${PERKARA.filter(p=>p.g).map(card).join("")}</div>
+  </div>
+  <div class="actions"><div class="in">
+    <div class="save" id="savestate"></div>
+    <button class="btn" id="b-sum" type="button">${ICON.copy}Ringkasan</button>
+    <button class="btn" id="b-pdf" type="button">${ICON.pdf}PDF</button>
+    <button class="btn primary" id="b-done" type="button">Tanda selesai</button>
+  </div></div>`;
+  bindTop();
+  const app=$("#app");
+  app.querySelectorAll(".seg").forEach(s=>s.onclick=e=>{const b=e.target.closest("button");if(!b)return;const k=s.closest(".card").dataset.k;
+    const cur=item(report(pid),k).s;patch(pid,{items:{[k]:{s:cur===b.dataset.v?"":b.dataset.v}}},300);refreshCard(k)});
+  app.querySelectorAll("textarea").forEach(t=>t.oninput=()=>patch(pid,{items:{[t.dataset.k]:{c:t.value}}}));
+  app.querySelectorAll(".shoot input").forEach(i=>i.onchange=()=>{const fs=[...i.files];i.value="";if(fs.length)addPhotos(pid,i.dataset.k,fs)});
+  $("#tarikh").onchange=e=>patch(pid,{tarikh:e.target.value},300);
+  $("#pegawai").oninput=e=>patch(pid,{pegawai:e.target.value});
+  $("#lain").oninput=e=>patch(pid,{lain:e.target.value});
+  $("#b-sum").onclick=()=>openSummary(pid);
+  $("#b-pdf").onclick=e=>makePDF(pid,e.currentTarget);
+  $("#b-done").onclick=()=>{const done=(report(pid)||{}).status==="selesai";patch(pid,{status:done?"draf":"selesai"},200);applyState(pid);toast(done?"Laporan dibuka semula sebagai draf.":"Laporan ditanda selesai.")};
+  $("#tarikh").value=today();
+  applyState(pid,true);
+  refreshReport(pid,false);
+}
+function applyState(pid,first){
+  if(view.screen!=="form"||view.pid!==pid)return;
+  const r=report(pid)||{},act=document.activeElement;
+  const setv=(el,v)=>{if(!el||el===act)return;if(first&&el.id==="tarikh"&&!v)return;if(el.value!==(v||""))el.value=v||""};
+  setv($("#tarikh"),r.tarikh);setv($("#pegawai"),r.pegawai);setv($("#lain"),r.lain);
+  PERKARA.forEach(p=>{setv($("#t-"+p.k),item(r,p.k).c);refreshCard(p.k);renderPhotos(p.k)});
+  const b=$("#b-done");if(b){const done=r.status==="selesai";b.className="btn "+(done?"done":"primary");b.innerHTML=done?ICON.check+"Selesai":"Tanda selesai"}
+  const u=$("#upd");if(u)u.textContent=r.updatedAt?`Kemas kini terakhir ${fmtTime(r.updatedAt)}${r.updatedBy?" oleh "+r.updatedBy:""}`:"";
+  updateSync();
+}
+function refreshCard(k){const el=$("#c-"+k);if(!el)return;const it=item(report(view.pid),k);el.dataset.st=it.s||"";
+  el.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===it.s)))}
+function renderPhotos(k){
+  const el=$("#p-"+k);if(!el||view.screen!=="form")return;
+  const ps=photoList(view.pid).filter(p=>p.k===k);
+  el.innerHTML=ps.map((p,i)=>`<button type="button" class="ph${p.busy?" busy":""}" data-i="${i}" aria-label="Lihat gambar ${i+1}"><img loading="lazy" alt="" src="${esc(p.thumb)}">${p.queued?`<span class="q">${p.busy?"Menghantar":"Belum dihantar"}</span>`:""}</button>`).join("");
+  el.onclick=e=>{const b=e.target.closest(".ph");if(b)openPhoto(view.pid,k,+b.dataset.i)};
+  el.hidden=!ps.length;
+}
+function openPhoto(pid,k,i){
+  const ps=photoList(pid).filter(p=>p.k===k),p=ps[i];if(!p)return;const per=PERKARA.find(x=>x.k===k);
+  const L=$("#layer");let confirmDel=false;
+  const draw=()=>{L.innerHTML=`<div class="ov" role="dialog" aria-label="Gambar"><div class="img"><img id="ovimg" class="loading" src="${esc(p.thumb)}" alt="${esc(per.t)}"></div>
+    <div class="bt"><span class="cap">${esc(per.n+". "+per.t)} · ${i+1}/${ps.length}${p.by?" · "+esc(p.by):""}</span><span style="display:flex;gap:8px">
+    <button class="btn ${confirmDel?"danger":""}" id="ov-del">${confirmDel?"Sahkan padam":"Padam"}</button><button class="btn" id="ov-x">Tutup</button></span></div></div>`;
+    $("#ov-x").onclick=close;$("#ov-del").onclick=async()=>{if(!confirmDel){confirmDel=true;draw();return}if(await deletePhoto(pid,p)){close();toast("Gambar dipadam.")}};
+    $(".ov .img").onclick=e=>{if(e.target.classList.contains("img"))close()};
+    getFull(p).then(d=>{const im=$("#ovimg");if(im&&d){im.src=d;im.classList.remove("loading")}}).catch(()=>{const im=$("#ovimg");if(im)im.classList.remove("loading")})};
+  const close=()=>{L.innerHTML="";document.removeEventListener("keydown",esck)};const esck=e=>{if(e.key==="Escape")close()};
+  document.addEventListener("keydown",esck);draw();
+}
+
+/* ======================= RINGKASAN ======================= */
+function summaryText(pid){const P=proj(pid),r=report(pid)||{};
+  const L=[`*LAPORAN LAWATAN TAPAK PROJEK*`,``,`Projek: ${P.nama}`,`Kod: ${P.kod||"-"}`,`Sekolah: ${P.sekolah}`,`PPD: ${P.ppd||"-"}`,`Tarikh lawatan: ${fmtDate(r.tarikh)}`];
+  if(r.pegawai)L.push(`Pegawai: ${r.pegawai}`);L.push("");
+  PERKARA.forEach(p=>{if(p.n==="10a")L.push("10. Penyuraian");const it=item(r,p.k),n=photoCount(pid,p.k);
+    const nm=p.other&&r.lain?`Lain-lain (${r.lain})`:p.t+(p.h&&!p.other?` (${p.h})`:"");
+    L.push(`${p.g?"   "+p.n.slice(2):p.n}. ${nm}: ${it.s?STATUS[it.s]:"-"}${it.c&&it.c.trim()?" — "+it.c.trim():""}${n?` [${n} gambar]`:""}`)});
+  const pr=progress(pid);if(pr.a)L.push("",`Perkara perlu tindakan: ${pr.a}`);return L.join("\n")}
+function openSummary(pid){
+  const txt=summaryText(pid),L=$("#layer");
+  L.innerHTML=`<div class="modal"><div class="sheet"><h3>Ringkasan</h3><textarea id="sumtxt" readonly style="min-height:260px">${esc(txt)}</textarea>
+    <div class="row"><button class="btn" id="sx">Tutup</button><button class="btn" id="sc">${ICON.copy}Salin</button><a class="btn wa" href="https://wa.me/?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">WhatsApp</a></div></div></div>`;
+  $("#sx").onclick=()=>L.innerHTML="";
+  $("#sc").onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast("Ringkasan disalin.")}catch(e){const t=$("#sumtxt");t.focus();t.select();toast("Tekan lama untuk salin.")}};
+}
+
+/* ======================= PDF ======================= */
+const clean=s=>String(s||"").replace(/[–—]/g,"-").replace(/…/g,"...").replace(/[‘’]/g,"'");
+async function makePDF(pid,btn){
+  if(!window.jspdf)return toast("Modul PDF belum dimuatkan. Pastikan ada talian dan cuba lagi.");
+  btn.disabled=true;const old=btn.innerHTML;btn.textContent="Menjana…";
+  try{
+    const{jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"});
+    const P=proj(pid),r=report(pid)||{};const W=210,M=15,CW=W-2*M,BOT=282;let y=M;
+    const page=need=>{if(y+need>BOT){doc.addPage();y=M}};
+    doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text("LAPORAN LAWATAN TAPAK PROJEK",W/2,y+5,{align:"center"});y+=12;doc.setFontSize(10);
+    for(const[l,v]of[["NAMA PROJEK",P.nama],["KOD SEKOLAH",P.kod||"-"],["NAMA SEKOLAH",P.sekolah],["PPD",P.ppd||"-"],["TARIKH LAWATAN",fmtDate(r.tarikh)],["PEGAWAI",r.pegawai||"-"]]){
+      doc.setFont("helvetica","normal");const lines=doc.splitTextToSize(clean(v),CW-42),h=Math.max(8,lines.length*4.6+3.4);page(h);
+      doc.rect(M,y,40,h);doc.rect(M+40,y,CW-40,h);doc.setFont("helvetica","bold");doc.text(l,M+2,y+5.3);doc.setFont("helvetica","normal");doc.text(lines,M+42,y+5.3);y+=h}
+    y+=6;const c1=58,c2=30,c3=CW-c1-c2;
+    const head=()=>{page(9);doc.setFillColor(225,225,225);doc.rect(M,y,CW,8,"FD");doc.setFont("helvetica","bold");doc.text("Perkara",M+2,y+5.4);doc.text("Status",M+c1+2,y+5.4);doc.text("Catatan",M+c1+c2+2,y+5.4);y+=8};
+    head();
+    const row=(nm,st,cat,bold)=>{doc.setFont("helvetica",bold?"bold":"normal");const a=doc.splitTextToSize(clean(nm),c1-4);doc.setFont("helvetica","normal");const b=doc.splitTextToSize(clean(st),c2-4),c=doc.splitTextToSize(clean(cat),c3-4);
+      const h=Math.max(a.length,b.length,c.length)*4.6+3.4;if(y+h>BOT){doc.addPage();y=M;head()}
+      doc.rect(M,y,c1,h);doc.rect(M+c1,y,c2,h);doc.rect(M+c1+c2,y,c3,h);doc.setFont("helvetica",bold?"bold":"normal");doc.text(a,M+2,y+5.3);doc.setFont("helvetica","normal");doc.text(b,M+c1+2,y+5.3);doc.text(c,M+c1+c2+2,y+5.3);y+=h};
+    PERKARA.forEach(p=>{if(p.n==="10a")row("10. Penyuraian","","",true);const it=item(r,p.k),n=photoCount(pid,p.k);
+      const nm=(p.g?"   - ":p.n+". ")+(p.other?"Lain-lain"+(r.lain?": "+r.lain:""):p.t+(p.h?` (${p.h})`:""));
+      row(nm,it.s?STATUS[it.s]:"-",(it.c&&it.c.trim()?it.c.trim():"-")+(n?`\n[${n} gambar - rujuk lampiran]`:""))});
+    const all=photoList(pid);
+    if(all.length){
+      doc.addPage();y=M;doc.setFont("helvetica","bold");doc.setFontSize(12);doc.text("LAMPIRAN GAMBAR",M,y+5);y+=11;doc.setFontSize(10);
+      const gw=(CW-6)/2;let done=0;
+      for(const p of PERKARA){const ps=all.filter(x=>x.k===p.k);if(!ps.length)continue;
+        page(14);doc.setFont("helvetica","bold");doc.text(clean(`${p.n}. ${p.other&&r.lain?"Lain-lain: "+r.lain:p.t}`),M,y+4);y+=7;
+        for(let i=0;i<ps.length;i+=2){
+          const imgs=[];
+          for(const ph of ps.slice(i,i+2)){btn.textContent=`Gambar ${++done}/${all.length}`;let d;try{d=await getFull(ph)}catch(e){d=ph.thumb}if(!d)d=ph.thumb;const im=await loadImg(d);imgs.push({d,w:im.naturalWidth,h:im.naturalHeight})}
+          const h=Math.max(...imgs.map(m=>gw*m.h/m.w));page(h+4);imgs.forEach((m,j)=>doc.addImage(m.d,"JPEG",M+j*(gw+6),y,gw,gw*m.h/m.w));y+=h+4}
+        y+=3}}
+    const n=doc.getNumberOfPages();doc.setFontSize(8);doc.setFont("helvetica","normal");
+    for(let i=1;i<=n;i++){doc.setPage(i);doc.text(clean(`${P.kod||P.id} - ${P.sekolah}`),M,292);doc.text(`Muka ${i}/${n}`,W-M,292,{align:"right"})}
+    const name=`Laporan_Lawatan_Tapak_${P.kod||P.id}.pdf`,blob=doc.output("blob");
+    openPdfSheet(blob,name);
+  }catch(e){toast("PDF tidak dapat dijana: "+(e.message||"ralat"))}
+  btn.disabled=false;btn.innerHTML=old;
+}
+function openPdfSheet(blob,name){
+  const url=URL.createObjectURL(blob),file=new File([blob],name,{type:"application/pdf"});
+  const canShare=navigator.canShare&&navigator.canShare({files:[file]});const L=$("#layer");
+  L.innerHTML=`<div class="modal"><div class="sheet"><h3>PDF sedia</h3><p style="margin:0" class="mono">${esc(name)} · ${(blob.size/1048576).toFixed(1)} MB</p>
+    <div class="row"><button class="btn" id="px">Tutup</button>${canShare?`<button class="btn" id="ps">Kongsi</button>`:""}<a class="btn primary" href="${url}" download="${esc(name)}">${ICON.pdf}Muat turun</a></div></div></div>`;
+  $("#px").onclick=()=>{L.innerHTML="";URL.revokeObjectURL(url)};
+  const s=$("#ps");if(s)s.onclick=()=>navigator.share({files:[file],title:name}).catch(()=>{});
+}
+
+/* ======================= TAMBAH PROJEK ======================= */
+function openAddProject(){
+  const L=$("#layer");
+  L.innerHTML=`<div class="modal"><form class="sheet" id="fp"><h3>Tambah projek</h3>
+    <div class="field"><label for="np-kod">Kod sekolah</label><input id="np-kod" class="mono" placeholder="Contoh: KBA1234"></div>
+    <div class="field"><label for="np-sek">Nama sekolah / lokasi</label><input id="np-sek" required></div>
+    <div class="field"><label for="np-ppd">PPD</label><select id="np-ppd">${PPD_KEDAH.map(p=>`<option>${p}</option>`).join("")}</select></div>
+    <div class="field"><label for="np-nama">Nama projek</label><textarea id="np-nama" required></textarea></div>
+    <div class="row"><button type="button" class="btn" id="np-x">Batal</button><button class="btn primary" id="np-ok">Simpan projek</button></div></form></div>`;
+  $("#np-x").onclick=()=>L.innerHTML="";
+  $("#fp").onsubmit=async e=>{e.preventDefault();const b=$("#np-ok");b.disabled=true;
+    try{const j=await api("addProject",{project:{kod:$("#np-kod").value,sekolah:$("#np-sek").value,ppd:$("#np-ppd").value,nama:$("#np-nama").value}});
+      cache.projects.push(j.project);persistCache();L.innerHTML="";renderList();toast("Projek ditambah.")}
+    catch(err){b.disabled=false;toast(err.net?"Perlu talian untuk menambah projek.":err.message)}};
+}
+
+/* ======================= LALUAN ======================= */
+function route(){
+  if(!auth){renderLogin();return}
+  const id=decodeURIComponent(location.hash.slice(1));
+  $("#layer").innerHTML="";
+  if(id&&proj(id)){view={screen:"form",pid:id};renderForm(id);window.scrollTo(0,0)}
+  else{view={screen:"list",pid:null};renderList()}
+}
+function rerender(){const id=decodeURIComponent(location.hash.slice(1));if(view.screen==="form"&&proj(view.pid))applyState(view.pid);else if(id&&proj(id))route();else{view={screen:"list",pid:null};renderList()}}
+window.addEventListener("hashchange",()=>{clearTimeout(flushT);if(pendingCount())sync();route()});
+
+async function startApp(){
+  queue=(await qdb.all()).sort((a,b)=>a.t-b.t);
+  route();
+  await sync();
+  await loadAll();
+}
+(function boot(){
+  if(auth&&auth.exp<Date.now()){auth=null;store.del("llt.auth")}
+  if("serviceWorker" in navigator&&location.protocol==="https:")navigator.serviceWorker.register("sw.js").catch(()=>{});
+  if(auth)startApp();else renderLogin();
+})();
+</script>
+</body>
+</html>
