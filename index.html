@@ -173,6 +173,26 @@ textarea{resize:vertical;min-height:88px;line-height:1.45}
 .sheet h3{font-size:1.45rem;text-transform:uppercase}
 .sheet .row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + env(safe-area-inset-bottom,0px));z-index:50;background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.9rem;font-weight:600;max-width:calc(100% - 32px);text-align:center}
+
+/* format toggle, tabs, Borang A controls */
+.ftog{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:14px;border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--surface)}
+.ftog button{border:0;background:transparent;padding:11px 8px;font-weight:700;font-size:.9rem;color:var(--muted);border-left:1px solid var(--line);line-height:1.2}
+.ftog button:first-child{border-left:0}
+.ftog button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.ftog small{display:block;font-weight:600;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;opacity:.75}
+.tabs{display:grid;grid-template-columns:1fr 1fr;margin-top:12px;border-bottom:2px solid var(--line)}
+.tabs a{padding:12px 6px 10px;text-align:center;font-weight:700;font-size:.92rem;color:var(--muted);text-decoration:none;border-bottom:3px solid transparent;margin-bottom:-2px;line-height:1.25}
+.tabs a[aria-current="page"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs .mono{display:block;font-size:.74rem;font-weight:600;color:var(--muted)}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:9px 14px;font-weight:600;font-size:.88rem;color:var(--ink);min-height:42px}
+.opt[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.opts[data-set="m"] .opt[aria-pressed="true"]::before{content:"✓ "}
+.sublbl{font-size:.75rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:-4px}
+.nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.nums input{font-family:var(--mono);font-size:1.05rem}
+.card[data-st="isi"]{border-left:5px solid var(--ok)}
+.card .nota{font-size:.82rem;color:var(--accent-ink);font-weight:600}
 @media (max-width:420px){.visit{grid-template-columns:1fr}.tally b{font-size:1.6rem}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
 </style>
@@ -184,10 +204,12 @@ textarea{resize:vertical;min-height:88px;line-height:1.45}
 <script>
 /* ======================= KONFIGURASI ======================= */
 const API_URL = "https://script.google.com/macros/s/AKfycbwWFKiTZNxg8mwqAklMCfiiOuvAND70vbJWY07hv2fanjwEZu3Gf-5Kh8ZEeL54h4A/exec"; // ← Tampal URL Web App (/exec) daripada Code.gs di sini
-const APP_VER = "1.0.0";
+const APP_VER = "1.1.0";
 
 /* ======================= DATA BORANG ======================= */
 const PPD_KEDAH=["Baling","Bandar Baharu","Kota Setar","Kuala Muda","Kubang Pasu","Kulim","Langkawi","Padang Terap","Pendang","Pokok Sena","Sik","Yan"];
+
+/* Format 1: Laporan Lawatan Tapak Projek */
 const PERKARA=[
  {k:"laluan_masuk",t:"Laluan Masuk Tapak Projek",n:"1"},
  {k:"laluan_bomba",t:"Laluan Bomba",n:"2"},
@@ -204,6 +226,45 @@ const PERKARA=[
  {k:"sur_lain",t:"Lain-lain",h:"Nyatakan",g:1,n:"10d",other:1},
 ];
 const STATUS={ok:"Tiada isu",tindakan:"Perlu tindakan",tb:"Tidak berkaitan"};
+
+/* Format 2: Borang A – RMKe13 RP1 / BPN3 (Maklumat Am Sekolah)
+   opts = pilihan (satu jawapan, atau banyak jika multi); x = pilihan eksklusif; sub = senarai semak tambahan; nums = medan bilangan */
+const YT=["Ya","Tidak"], AT=["Ada","Tiada"];
+const SOALAN=[
+ {k:"a_cop",n:"Cop",t:"Cop Sekolah",h:"Ambil gambar cop sekolah yang telah dicop pada borang atau kertas",hdr:1},
+ {k:"a_banjir",n:"1",t:"Sejarah Kawasan Banjir",opts:YT},
+ {k:"a_tekanan_air",n:"2",t:"Status Tekanan Air",opts:["Kerap terputus","Tekanan kuat","Tekanan rendah"],multi:1},
+ {k:"a_elektrik_status",n:"3",t:"Status Bekalan Elektrik Sediada/Semasa",opts:["Kerap terputus","Litar pintas (trip)","Tiada masalah"],multi:1,x:"Tiada masalah"},
+ {k:"a_pili",n:"4",t:"Bilangan Fire Hydrant (Pili Bomba)",nums:[{f:"bil",l:"Bilangan pili bomba"}]},
+ {k:"a_kebakaran",n:"5",t:"Status Sistem Pencegah Kebakaran",opts:["Sprinkler","Pili bomba","Pemadam api"],multi:1},
+ {k:"a_tanah",n:"6",t:"Status Pemilikan Tanah",opts:["PTP","Pajakan","PTG Negeri","Sementara","Tanah wakaf"]},
+ {k:"a_elektrik_jenis",n:"7",t:"Jenis Bekalan Elektrik Sediada",opts:["Pencawang TNB","Compact Sub Station TNB","Bilik suis"],multi:1},
+ {k:"a_bulk",n:"8",t:"Jenis Sistem Bekalan Air Utama – Bulk Meter",opts:AT},
+ {k:"a_meter",n:"9",t:"Bilangan meter air yang terdapat dalam kawasan sekolah",nums:[{f:"bil",l:"Bilangan meter air"}]},
+ {k:"a_agihan",n:"10",t:"Sistem Agihan Bekalan Air",opts:["Elevated water tank","Bekalan air terus","Pam"],multi:1},
+ {k:"a_kumbahan",n:"11",t:"Jenis Sistem Kumbahan Sediaada",opts:["Individu – Septic Tank (SSTS)","Berpusat – Loji Kumbahan IWK"]},
+ {k:"a_guru",n:"12",t:"Bilangan Guru / Kakitangan",nums:[{f:"guru",l:"Guru"},{f:"kakitangan",l:"Kakitangan"}]},
+ {k:"a_pelajar",n:"13",t:"Bilangan Pelajar",nums:[{f:"bil",l:"Pelajar"}]},
+ {k:"a_oku",n:"14",t:"Keperluan OKU",opts:YT,sub:["Ramp","Tandas OKU","Hand railing","Parking OKU"],subLabel:"Keperluan yang dikenal pasti"},
+ {k:"a_penyuraian",n:"15",t:"Keperluan Penyuraian Pelajar",opts:YT,sub:["Kantin sementara","Bilik darjah sementara","Jalan keluar masuk"],subLabel:"Keperluan penyuraian"},
+ {k:"a_syor_roboh",n:"16",t:"Status Permohonan Syor Roboh",opts:["Selesai","Belum","Dalam tindakan","Tidak berkaitan"],nota:"Bagi projek terlibat skop perobohan"},
+ {k:"a_bd",n:"17",t:"Bilangan Bilik Darjah Sediada",nums:[{f:"bil",l:"Bilik darjah"}]},
+ {k:"a_potensi",n:"18",t:"Potensi Pertambahan Guru atau Pelajar",opts:YT,nums:[{f:"anggaran",l:"Anggaran pertambahan"}],nota:"Anggaran pertambahan diperlukan"},
+ {k:"a_rekabentuk",n:"19",t:"Keperluan Pertimbangan Rekabentuk",h:"Disebabkan kawasan angin lintang dan terdapat gangguan dari binatang buas",opts:YT},
+ {k:"a_asbuilt",n:"20",t:"As Built Drawing Sekolah",opts:AT},
+ {k:"a_bil",n:"21",t:"Salinan Bil TNB / Bil Air / Bil Pembentungan / Cukai Tanah",sub:["Bil TNB","Bil air","Bil pembentungan","Cukai tanah"],subLabel:"Salinan diterima",nota:"Mohon disedia salinan semasa lawatan bagi setiap bil"},
+];
+
+const FORMS={
+ L:{label:"Lawatan Tapak",small:"13 perkara",title:"Laporan Lawatan Tapak Projek",items:PERKARA,peg:"Pegawai / ahli lawatan",pegPh:"Nama pegawai, JKR, kontraktor"},
+ A:{label:"Borang A",small:"RMKe13 · 21 soalan",title:"Borang A – RMKe13 RP1 / BPN3",items:SOALAN,peg:"Pegawai / wakil sekolah",pegPh:"Nama pegawai dan wakil sekolah"},
+};
+const ridOf=(pid,f)=>f==="A"?pid+"__A":pid;
+const fOf=rid=>String(rid).endsWith("__A")?"A":"L";
+const pidOf=rid=>String(rid).replace(/__A$/,"");
+const itemsOf=rid=>FORMS[fOf(rid)].items;
+const defOf=(rid,k)=>itemsOf(rid).find(d=>d.k===k);
+
 const ICON={
  cam:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/></svg>',
  gal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></svg>',
@@ -240,12 +301,12 @@ const qdb=(()=>{let p,mem=new Map();
 /* ======================= KEADAAN ======================= */
 let auth=store.get("llt.auth",null);            // {token, exp, nama}
 let cache=store.get("llt.cache",{projects:[],reports:{},photoCounts:{},at:0});
-let outbox=store.get("llt.outbox",{});           // pid -> patch belum dihantar
-let queue=[];                                    // gambar belum dimuat naik
-let photos={};                                   // pid -> [{id,k,thumb,t,by}]
+let outbox=store.get("llt.outbox",{});           // rid -> patch belum dihantar
+let queue=[];                                    // gambar belum dimuat naik ({qid, pid:rid, k, full, thumb, t})
+let photos={};                                   // rid -> [{id,k,thumb,t,by}]
 let fullCache=new Map();                         // id -> dataURL saiz penuh
-let view={screen:"list",pid:null};
-let filt={st:"semua",q:"",ppd:""};
+let view={screen:"list",rid:null};
+let filt={st:"semua",q:"",ppd:"",f:store.get("llt.f","L")};
 let online=navigator.onLine, syncing=false, lastErr="";
 let pinBuf="";
 
@@ -297,42 +358,42 @@ async function doLogin(){
 /* ======================= PENYEGERAKAN ======================= */
 function persistOutbox(){store.set("llt.outbox",outbox)}
 function persistCache(){store.set("llt.cache",cache)}
-function report(pid){const base=clone(cache.reports[pid]||null);const p=outbox[pid];if(!base&&!p)return null;return merge(base||{pid,tarikh:"",pegawai:"",lain:"",status:"draf",items:{}},clone(p||{}))}
+function report(rid){const base=clone(cache.reports[rid]||null);const p=outbox[rid];if(!base&&!p)return null;return merge(base||{pid:rid,tarikh:"",pegawai:"",lain:"",status:"draf",items:{}},clone(p||{}))}
 function item(r,k){return(r&&r.items&&r.items[k])||{}}
-function photoList(pid){return[...(photos[pid]||[]),...queue.filter(q=>q.pid===pid).map(q=>({id:q.qid,k:q.k,thumb:q.thumb,t:q.t,queued:true,busy:q.busy}))]}
-function photoCount(pid,k){if(photos[pid])return photoList(pid).filter(p=>p.k===k).length;return((cache.photoCounts[pid]||{})[k]||0)+queue.filter(q=>q.pid===pid&&q.k===k).length}
-function filled(pid,r,k){const it=item(r,k);return!!(it.s||(it.c&&it.c.trim())||photoCount(pid,k))}
-function progress(pid){const r=report(pid);let n=0,a=0;PERKARA.forEach(p=>{if(filled(pid,r,p.k))n++;if(item(r,p.k).s==="tindakan")a++});return{n,a,tot:PERKARA.length}}
-function statusOf(pid){const r=report(pid);if(r&&r.status==="selesai")return"selesai";return(r&&r.tarikh)||progress(pid).n?"draf":"belum"}
+function photoList(rid){return[...(photos[rid]||[]),...queue.filter(q=>q.pid===rid).map(q=>({id:q.qid,k:q.k,thumb:q.thumb,t:q.t,queued:true,busy:q.busy}))]}
+function photoCount(rid,k){if(photos[rid])return photoList(rid).filter(p=>p.k===k).length;return((cache.photoCounts[rid]||{})[k]||0)+queue.filter(q=>q.pid===rid&&q.k===k).length}
+function filled(rid,r,k){const it=item(r,k);return!!(it.s||(it.m&&it.m.length)||(it.v&&Object.values(it.v).some(x=>String(x).trim()))||(it.c&&it.c.trim())||photoCount(rid,k))}
+function progress(rid){const r=report(rid);let n=0,a=0;const its=itemsOf(rid);its.forEach(d=>{if(filled(rid,r,d.k))n++;if(item(r,d.k).s==="tindakan")a++});return{n,a,tot:its.length}}
+function statusOf(rid){const r=report(rid);if(r&&r.status==="selesai")return"selesai";return(r&&r.tarikh)||progress(rid).n?"draf":"belum"}
 const pendingCount=()=>Object.keys(outbox).length+queue.length;
 
 let flushT;
-function patch(pid,p,delay=900){
-  const r=report(pid);
+function patch(rid,p,delay=900){
+  const r=report(rid);
   if(!(r&&r.tarikh)&&p.tarikh===undefined){const t=$("#tarikh");if(t&&t.value)p={...p,tarikh:t.value}}
-  outbox[pid]=merge(outbox[pid]||{},clone(p));persistOutbox();
+  outbox[rid]=merge(outbox[rid]||{},clone(p));persistOutbox();
   updateSync();clearTimeout(flushT);flushT=setTimeout(sync,delay);
 }
 async function sync(){
   if(syncing||!auth)return; syncing=true; updateSync();
   try{
-    for(const pid of Object.keys(outbox)){
-      const sent=outbox[pid]; delete outbox[pid]; persistOutbox();
-      try{const j=await api("savePatch",{pid,patch:sent});cache.reports[pid]=j.report;persistCache();lastErr=""}
-      catch(e){outbox[pid]=merge(clone(sent),outbox[pid]||{});persistOutbox();if(e.net){online=false;break}if(e.session)break;lastErr=e.message;break}
+    for(const rid of Object.keys(outbox)){
+      const sent=outbox[rid]; delete outbox[rid]; persistOutbox();
+      try{const j=await api("savePatch",{pid:rid,patch:sent});cache.reports[rid]=j.report;persistCache();lastErr=""}
+      catch(e){outbox[rid]=merge(clone(sent),outbox[rid]||{});persistOutbox();if(e.net){online=false;break}if(e.session)break;lastErr=e.message;break}
     }
     for(const q of queue.slice()){
-      if(!auth)break; q.busy=true; renderPhotos(q.k);
+      if(!auth)break; q.busy=true; if(q.pid===view.rid)renderPhotos(q.k);
       try{
         const j=await api("uploadPhoto",{qid:q.qid,pid:q.pid,k:q.k,full:q.full,thumb:q.thumb,t:q.t});
         await qdb.del(q.qid); queue=queue.filter(x=>x.qid!==q.qid); fullCache.set(j.photo.id,q.full);
         if(photos[q.pid])photos[q.pid].push(j.photo);
         const pc=cache.photoCounts[q.pid]=cache.photoCounts[q.pid]||{};pc[q.k]=(pc[q.k]||0)+1;persistCache();online=true;lastErr="";
       }catch(e){q.busy=false;if(e.net){online=false;break}if(e.session)break;q.fails=(q.fails||0)+1;lastErr="Gambar gagal dihantar: "+e.message;if(q.fails>=3)break}
-      renderPhotos(q.k);
+      if(q.pid===view.rid)renderPhotos(q.k);
     }
     if(!pendingCount())online=true;
-  }finally{syncing=false;updateSync();if(view.screen==="list")renderList();else applyState(view.pid)}
+  }finally{syncing=false;updateSync();if(view.screen==="list")renderList();else applyState(view.rid)}
 }
 function updateSync(){
   const el=$("#sync");if(!el)return;const n=pendingCount();
@@ -344,23 +405,23 @@ function updateSync(){
 window.addEventListener("online",()=>{online=true;sync()});
 window.addEventListener("offline",()=>{online=false;updateSync()});
 setInterval(()=>{if(pendingCount()&&!syncing&&auth)sync()},20000);
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&auth){sync();if(view.screen==="form")refreshReport(view.pid,true)}});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&auth){sync();if(view.screen==="form")refreshReport(view.rid,true)}});
 
 async function loadAll(){
   try{const j=await api("getAll");cache={projects:j.projects,reports:j.reports,photoCounts:j.photoCounts,at:Date.now()};persistCache();online=true}
   catch(e){if(e.net)online=false;else if(!e.session)toast(e.message)}
   if(auth)rerender();
 }
-async function refreshReport(pid,quiet){
-  try{const j=await api("getReport",{pid});if(j.report)cache.reports[pid]=j.report;else delete cache.reports[pid];photos[pid]=j.photos;
-    const pc={};j.photos.forEach(p=>pc[p.k]=(pc[p.k]||0)+1);cache.photoCounts[pid]=pc;persistCache();online=true;
-    if(view.screen==="form"&&view.pid===pid)applyState(pid)}
+async function refreshReport(rid,quiet){
+  try{const j=await api("getReport",{pid:rid});if(j.report)cache.reports[rid]=j.report;else delete cache.reports[rid];photos[rid]=j.photos;
+    const pc={};j.photos.forEach(p=>pc[p.k]=(pc[p.k]||0)+1);cache.photoCounts[rid]=pc;persistCache();online=true;
+    if(view.screen==="form"&&view.rid===rid)applyState(rid)}
   catch(e){if(e.net)online=false;else if(!quiet&&!e.session)toast(e.message);updateSync()}
 }
 
 /* ======================= GAMBAR ======================= */
 function loadImg(src){return new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src})}
-function drawTo(img,max,q){const sc=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*sc);c.height=Math.round(img.naturalHeight*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return c}
+function drawTo(img,max){const sc=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));const c=document.createElement("canvas");c.width=Math.round(img.naturalWidth*sc);c.height=Math.round(img.naturalHeight*sc);c.getContext("2d").drawImage(img,0,0,c.width,c.height);return c}
 async function processImage(file,label){
   const url=URL.createObjectURL(file);
   try{
@@ -377,14 +438,14 @@ async function processImage(file,label){
     return{full,thumb};
   }finally{URL.revokeObjectURL(url)}
 }
-async function addPhotos(pid,k,files){
-  const P=proj(pid),per=PERKARA.find(x=>x.k===k);
+async function addPhotos(rid,k,files){
+  const P=proj(pidOf(rid)),d=defOf(rid,k),tag=fOf(rid)==="A"?"Borang A · ":"";
   for(const f of files){
     if(!f.type.startsWith("image/")){toast("Hanya fail gambar diterima.");continue}
     try{
-      const {full,thumb}=await processImage(f,`${P.kod||P.id} · ${per.n}. ${per.t}`);
-      const q={qid:uid(),pid,k,full,thumb,t:Date.now()};
-      await qdb.put(q);queue.push(q);renderPhotos(k);refreshCard(k);updateSync();
+      const {full,thumb}=await processImage(f,`${P.kod||P.id} · ${tag}${d.n}. ${d.t}`);
+      const q={qid:uid(),pid:rid,k,full,thumb,t:Date.now()};
+      await qdb.put(q);queue.push(q);if(view.rid===rid){renderPhotos(k);refreshCard(k);updateTabs()}updateSync();
     }catch(e){toast("Gambar tidak dapat diproses. Cuba ambil semula.")}
   }
   sync();
@@ -396,14 +457,14 @@ async function getFull(p){
   if(fullCache.size>40)fullCache.delete(fullCache.keys().next().value);
   fullCache.set(p.id,j.data);return j.data;
 }
-async function deletePhoto(pid,p){
+async function deletePhoto(rid,p){
   if(p.queued){await qdb.del(p.id);queue=queue.filter(q=>q.qid!==p.id)}
   else{
     try{await api("deletePhoto",{id:p.id})}catch(e){toast(e.net?"Perlu talian internet untuk memadam gambar yang sudah dihantar.":e.message);return false}
-    photos[pid]=(photos[pid]||[]).filter(x=>x.id!==p.id);fullCache.delete(p.id);
-    const pc=cache.photoCounts[pid];if(pc&&pc[p.k])pc[p.k]--;persistCache();
+    photos[rid]=(photos[rid]||[]).filter(x=>x.id!==p.id);fullCache.delete(p.id);
+    const pc=cache.photoCounts[rid];if(pc&&pc[p.k])pc[p.k]--;persistCache();
   }
-  renderPhotos(p.k);refreshCard(p.k);updateSync();return true;
+  renderPhotos(p.k);refreshCard(p.k);updateTabs();updateSync();return true;
 }
 
 /* ======================= PROJEK ======================= */
@@ -413,26 +474,29 @@ function jenis(n){n=String(n).toUpperCase();const y=(n.match(/DAIF KEDAH \((\d{4
  if(y)return"Bangunan Daif "+y;if(n.includes("PEROLEHAN TANAH"))return"Perolehan Tanah";if(n.includes("KOMPLEKS"))return"Kompleks Sekolah Baharu";
  if(n.includes("KOKURIKULUM"))return"Pusat Kokurikulum";if(n.includes("PEJABAT PENDIDIKAN"))return"Bangunan PPD";if(n.includes("DEWAN"))return"Dewan Sekolah";
  if(n.includes("PADANG SEKOLAH"))return"Padang Sekolah";if(n.includes("TAMBAHAN"))return"Bangunan Tambahan";return"Projek Pembangunan"}
+const hrefOf=(pid,f)=>"#"+encodeURIComponent(pid)+(f==="A"?"/A":"");
 
 /* ======================= SENARAI ======================= */
 function topSync(){return`<div class="sync" id="sync"><span class="dot"></span><span class="msg"></span><span class="who">${esc(auth.nama)} · <button class="linkbtn" id="logout">Log keluar</button></span></div>`}
-function bindTop(){const l=$("#logout");if(l)l.onclick=()=>{if(pendingCount()&&!confirmLeave)return askLogout();doLogout()};updateSync()}
-let confirmLeave=false;
+function bindTop(){const l=$("#logout");if(l)l.onclick=()=>{if(pendingCount())return askLogout();doLogout()};updateSync()}
 function askLogout(){const L=$("#layer");L.innerHTML=`<div class="modal"><div class="sheet"><h3>Log keluar?</h3><p style="margin:0">Ada ${pendingCount()} perubahan yang belum dihantar. Ia kekal dalam telefon ini dan akan dihantar selepas anda log masuk semula.</p><div class="row"><button class="btn" id="lx">Batal</button><button class="btn primary" id="ly">Log keluar</button></div></div></div>`;$("#lx").onclick=()=>L.innerHTML="";$("#ly").onclick=()=>{L.innerHTML="";doLogout()}}
 function doLogout(){auth=null;store.del("llt.auth");location.hash="";renderLogin()}
 
 function renderList(){
-  const ps=projects();
-  const c={semua:ps.length,belum:0,draf:0,selesai:0};ps.forEach(p=>c[statusOf(p.id)]++);
+  const ps=projects(),F=filt.f;
+  const c={semua:ps.length,belum:0,draf:0,selesai:0};ps.forEach(p=>c[statusOf(ridOf(p.id,F))]++);
   const ppds=[...new Set([...PPD_KEDAH,...ps.map(p=>p.ppd).filter(Boolean)])].sort();
   const q=filt.q.trim().toUpperCase();
-  const rows=ps.filter(p=>(filt.st==="semua"||statusOf(p.id)===filt.st)&&(!filt.ppd||p.ppd===filt.ppd)&&(!q||(p.kod+" "+p.sekolah+" "+p.nama+" "+p.ppd).toUpperCase().includes(q)));
+  const rows=ps.filter(p=>(filt.st==="semua"||statusOf(ridOf(p.id,F))===filt.st)&&(!filt.ppd||p.ppd===filt.ppd)&&(!q||(p.kod+" "+p.sekolah+" "+p.nama+" "+p.ppd).toUpperCase().includes(q)));
   const focusQ=document.activeElement&&document.activeElement.id==="q",pos=focusQ?$("#q").selectionStart:0;
   $("#app").innerHTML=`<div class="wrap">
     <header class="top"><div class="grow"><h1>Laporan Lawatan Tapak</h1><div class="sub">Projek Pembangunan · JPN Kedah</div></div>
       <button class="iconbtn" id="reload" aria-label="Muat semula data">${ICON.sync}</button></header>
     ${topSync()}
     ${!API_URL?`<div class="banner">Sistem belum disambung. Tampal URL Web App Code.gs ke dalam pemboleh ubah API_URL di index.html.</div>`:""}
+    <div class="ftog" role="group" aria-label="Format pelaporan">
+      ${Object.entries(FORMS).map(([f,o])=>`<button data-f="${f}" aria-pressed="${F===f}">${o.label}<small>${o.small}</small></button>`).join("")}
+    </div>
     ${!ps.length?`<div class="list"><div class="empty">${API_URL?"Memuatkan senarai projek…":"Tiada data."}</div></div>`:`
     <div class="tally" role="group" aria-label="Tapis status">
       ${[["semua","Semua"],["belum","Belum"],["draf","Draf"],["selesai","Selesai"]].map(([v,l])=>`<button class="t-${v}" data-st="${v}" aria-pressed="${filt.st===v}"><b>${c[v]}</b><span>${l}</span></button>`).join("")}
@@ -442,10 +506,10 @@ function renderList(){
       <select id="ppd" aria-label="PPD"><option value="">Semua PPD</option>${ppds.map(p=>`<option ${p===filt.ppd?"selected":""}>${esc(p)}</option>`).join("")}</select>
     </div>
     <div class="list">
-      ${rows.length?rows.map(p=>{const st=statusOf(p.id),r=report(p.id),pr=progress(p.id);
-        return`<a class="proj" href="#${encodeURIComponent(p.id)}">
-          <div class="meta">${p.kod?`<span class="chip">${esc(p.kod)}</span>`:""}<span>PPD ${esc(p.ppd||"—")}</span>${r&&r.tarikh?`<span>· Lawatan ${fmtDate(r.tarikh)}</span>`:""}</div>
-          <span class="pill ${st}">${st==="belum"?"Belum dilawat":st==="draf"?"Draf":"Selesai"}</span>
+      ${rows.length?rows.map(p=>{const rid=ridOf(p.id,F),st=statusOf(rid),r=report(rid),pr=progress(rid);
+        return`<a class="proj" href="${hrefOf(p.id,F)}">
+          <div class="meta">${p.kod?`<span class="chip">${esc(p.kod)}</span>`:""}<span>PPD ${esc(p.ppd||"—")}</span>${r&&r.tarikh?`<span>· ${F==="A"?"Diisi":"Lawatan"} ${fmtDate(r.tarikh)}</span>`:""}</div>
+          <span class="pill ${st}">${st==="belum"?(F==="A"?"Belum diisi":"Belum dilawat"):st==="draf"?"Draf":"Selesai"}</span>
           <div class="nm">${esc(p.sekolah)}</div>
           <div class="jenis">${esc(jenis(p.nama))}</div>
           <div class="bar"><i style="--w:${Math.round(pr.n/pr.tot*100)}%"></i><span class="mono">${pr.n}/${pr.tot}</span>${pr.a?`<span class="act">${pr.a} perlu tindakan</span>`:""}</div>
@@ -455,6 +519,7 @@ function renderList(){
   </div>`;
   bindTop();
   $("#reload").onclick=()=>{toast("Memuat semula…");sync().then(loadAll)};
+  $(".ftog").onclick=e=>{const b=e.target.closest("button");if(!b)return;filt.f=b.dataset.f;store.set("llt.f",filt.f);renderList()};
   if(!ps.length)return;
   $(".tally").onclick=e=>{const b=e.target.closest("button");if(!b)return;filt.st=b.dataset.st;renderList()};
   $("#q").oninput=e=>{filt.q=e.target.value;renderList()};
@@ -464,36 +529,56 @@ function renderList(){
 }
 
 /* ======================= BORANG ======================= */
-function renderForm(pid){
-  const P=proj(pid);if(!P){location.hash="";return}
-  const card=p=>`<section class="card" id="c-${p.k}" data-k="${p.k}">
-      <div class="hd"><div class="num">${p.n}</div><div><h4>${esc(p.t)}</h4>${p.h&&!p.other?`<div class="hint">${esc(p.h)}</div>`:""}</div></div>
-      ${p.other?`<div class="field"><label for="lain">Nyatakan</label><input id="lain" type="text" placeholder="Contoh: stor sementara, bilik guru sementara"></div>`:""}
-      <div class="seg" role="group" aria-label="Status ${esc(p.t)}">${Object.entries(STATUS).map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="false">${l}</button>`).join("")}</div>
-      <textarea id="t-${p.k}" data-k="${p.k}" placeholder="Catatan pemerhatian di tapak" aria-label="Catatan ${esc(p.t)}"></textarea>
-      <div class="photos" id="p-${p.k}" hidden></div>
-      <div class="shoot">
-        <label class="cam">${ICON.cam}Ambil gambar<input type="file" accept="image/*" capture="environment" data-k="${p.k}"></label>
-        <label class="gal">${ICON.gal}Galeri<input type="file" accept="image/*" multiple data-k="${p.k}"></label>
-      </div>
-    </section>`;
+const shootHTML=k=>`<div class="shoot">
+    <label class="cam">${ICON.cam}Ambil gambar<input type="file" accept="image/*" capture="environment" data-k="${k}"></label>
+    <label class="gal">${ICON.gal}Galeri<input type="file" accept="image/*" multiple data-k="${k}"></label>
+  </div>`;
+function cardL(p){return`<section class="card" id="c-${p.k}" data-k="${p.k}">
+    <div class="hd"><div class="num">${p.n}</div><div><h4>${esc(p.t)}</h4>${p.h&&!p.other?`<div class="hint">${esc(p.h)}</div>`:""}</div></div>
+    ${p.other?`<div class="field"><label for="lain">Nyatakan</label><input id="lain" type="text" placeholder="Contoh: stor sementara, bilik guru sementara"></div>`:""}
+    <div class="seg" role="group" aria-label="Status ${esc(p.t)}">${Object.entries(STATUS).map(([v,l])=>`<button type="button" data-v="${v}" aria-pressed="false">${l}</button>`).join("")}</div>
+    <textarea id="t-${p.k}" data-k="${p.k}" placeholder="Catatan pemerhatian di tapak" aria-label="Catatan ${esc(p.t)}"></textarea>
+    <div class="photos" id="p-${p.k}" hidden></div>${shootHTML(p.k)}
+  </section>`}
+function cardA(d){
+  const chips=(list,set)=>`<div class="opts" data-set="${set}" role="group">${list.map(o=>`<button type="button" class="opt" data-o="${esc(o)}" aria-pressed="false">${esc(o)}</button>`).join("")}</div>`;
+  return`<section class="card" id="c-${d.k}" data-k="${d.k}">
+    <div class="hd"><div class="num">${d.n}</div><div><h4>${esc(d.t)}</h4>${d.h?`<div class="hint">${esc(d.h)}</div>`:""}${d.nota?`<div class="nota">Nota: ${esc(d.nota)}</div>`:""}</div></div>
+    ${d.opts?chips(d.opts,d.multi?"m":"s"):""}
+    ${d.sub?`<div class="sublbl">${esc(d.subLabel||"Pilih yang berkaitan")}</div>${chips(d.sub,"m")}`:""}
+    ${d.nums?`<div class="nums">${d.nums.map(n=>`<div class="field"><label for="v-${d.k}-${n.f}">${esc(n.l)}</label><input id="v-${d.k}-${n.f}" type="number" inputmode="numeric" min="0" data-k="${d.k}" data-f="${n.f}"></div>`).join("")}</div>`:""}
+    ${d.hdr?"":`<textarea id="t-${d.k}" data-k="${d.k}" placeholder="Catatan tambahan" aria-label="Catatan ${esc(d.t)}"></textarea>`}
+    <div class="photos" id="p-${d.k}" hidden></div>${shootHTML(d.k)}
+  </section>`}
+
+function renderForm(rid){
+  const pid=pidOf(rid),f=fOf(rid),F=FORMS[f],P=proj(pid);if(!P){location.hash="";return}
+  const body=f==="L"
+    ?`<div class="cards">${PERKARA.filter(p=>!p.g).map(cardL).join("")}</div>
+      <div class="group"><h3>10 · Penyuraian</h3><span>Kemudahan sementara semasa pembinaan</span></div>
+      <div class="cards">${PERKARA.filter(p=>p.g).map(cardL).join("")}</div>`
+    :`<div class="group"><h3>Maklumat Am Sekolah</h3><span>Cop sekolah</span></div>
+      <div class="cards">${SOALAN.filter(d=>d.hdr).map(cardA).join("")}</div>
+      <div class="group"><h3>Soalan 1–21</h3><span>Pilih jawapan, isi bilangan dan ambil gambar sokongan</span></div>
+      <div class="cards">${SOALAN.filter(d=>!d.hdr).map(cardA).join("")}</div>`;
   $("#app").innerHTML=`<div class="wrap">
     <header class="top"><a class="iconbtn" href="#" aria-label="Kembali ke senarai">${ICON.back}</a>
       <div class="grow"><div class="sub">${P.kod?esc(P.kod)+" · ":""}PPD ${esc(P.ppd||"—")}</div><h1 style="font-size:1.3rem">${esc(P.sekolah)}</h1></div></header>
     ${topSync()}
+    <nav class="tabs" aria-label="Format pelaporan">
+      ${Object.entries(FORMS).map(([ff,o])=>`<a href="${hrefOf(pid,ff)}" data-f="${ff}" ${ff===f?'aria-current="page"':""}>${o.label}<span class="mono" id="tab-${ff}"></span></a>`).join("")}
+    </nav>
     <div class="board"><div class="in">
-      <div class="eyebrow">Laporan Lawatan Tapak Projek</div>
+      <div class="eyebrow">${esc(F.title)}</div>
       <h2>${esc(P.nama)}</h2>
       <dl><dt>Kod Sekolah</dt><dd class="mono">${esc(P.kod||"—")}</dd><dt>Nama Sekolah</dt><dd>${esc(P.sekolah)}</dd><dt>PPD</dt><dd>${esc(P.ppd||"—")}</dd></dl>
     </div><div class="hazard"></div></div>
     <div class="visit">
-      <div class="field"><label for="tarikh">Tarikh lawatan</label><input id="tarikh" type="date"></div>
-      <div class="field"><label for="pegawai">Pegawai / ahli lawatan</label><input id="pegawai" type="text" placeholder="Nama pegawai, JKR, kontraktor"></div>
+      <div class="field"><label for="tarikh">${f==="A"?"Tarikh":"Tarikh lawatan"}</label><input id="tarikh" type="date"></div>
+      <div class="field"><label for="pegawai">${esc(F.peg)}</label><input id="pegawai" type="text" placeholder="${esc(F.pegPh)}"></div>
     </div>
     <div class="upd" id="upd"></div>
-    <div class="cards">${PERKARA.filter(p=>!p.g).map(card).join("")}</div>
-    <div class="group"><h3>10 · Penyuraian</h3><span>Kemudahan sementara semasa pembinaan</span></div>
-    <div class="cards">${PERKARA.filter(p=>p.g).map(card).join("")}</div>
+    ${body}
   </div>
   <div class="actions"><div class="in">
     <div class="save" id="savestate"></div>
@@ -503,62 +588,97 @@ function renderForm(pid){
   </div></div>`;
   bindTop();
   const app=$("#app");
+  // Format L: status tiga pilihan
   app.querySelectorAll(".seg").forEach(s=>s.onclick=e=>{const b=e.target.closest("button");if(!b)return;const k=s.closest(".card").dataset.k;
-    const cur=item(report(pid),k).s;patch(pid,{items:{[k]:{s:cur===b.dataset.v?"":b.dataset.v}}},300);refreshCard(k)});
-  app.querySelectorAll("textarea").forEach(t=>t.oninput=()=>patch(pid,{items:{[t.dataset.k]:{c:t.value}}}));
-  app.querySelectorAll(".shoot input").forEach(i=>i.onchange=()=>{const fs=[...i.files];i.value="";if(fs.length)addPhotos(pid,i.dataset.k,fs)});
-  $("#tarikh").onchange=e=>patch(pid,{tarikh:e.target.value},300);
-  $("#pegawai").oninput=e=>patch(pid,{pegawai:e.target.value});
-  $("#lain").oninput=e=>patch(pid,{lain:e.target.value});
-  $("#b-sum").onclick=()=>openSummary(pid);
-  $("#b-pdf").onclick=e=>makePDF(pid,e.currentTarget);
-  $("#b-done").onclick=()=>{const done=(report(pid)||{}).status==="selesai";patch(pid,{status:done?"draf":"selesai"},200);applyState(pid);toast(done?"Laporan dibuka semula sebagai draf.":"Laporan ditanda selesai.")};
+    const cur=item(report(rid),k).s;patch(rid,{items:{[k]:{s:cur===b.dataset.v?"":b.dataset.v}}},300);refreshCard(k);updateTabs()});
+  // Format A: cip pilihan
+  app.querySelectorAll(".opts").forEach(g=>g.onclick=e=>{const b=e.target.closest(".opt");if(!b)return;const k=g.closest(".card").dataset.k,d=defOf(rid,k),o=b.dataset.o,it=item(report(rid),k);
+    if(g.dataset.set==="s"){patch(rid,{items:{[k]:{s:it.s===o?"":o}}},300)}
+    else{let m=(it.m||[]).slice();if(m.includes(o))m=m.filter(x=>x!==o);else{if(d.x&&o===d.x)m=[];else if(d.x)m=m.filter(x=>x!==d.x);m.push(o)}
+      const order=[...(d.multi?d.opts:[]),...(d.sub||[])];m.sort((a,b)=>order.indexOf(a)-order.indexOf(b));patch(rid,{items:{[k]:{m}}},300)}
+    refreshCard(k);updateTabs()});
+  app.querySelectorAll(".nums input").forEach(i=>i.oninput=()=>{patch(rid,{items:{[i.dataset.k]:{v:{[i.dataset.f]:i.value}}}});refreshCard(i.dataset.k)});
+  app.querySelectorAll("textarea[data-k]").forEach(t=>t.oninput=()=>{patch(rid,{items:{[t.dataset.k]:{c:t.value}}});refreshCard(t.dataset.k)});
+  app.querySelectorAll(".shoot input").forEach(i=>i.onchange=()=>{const fs=[...i.files];i.value="";if(fs.length)addPhotos(rid,i.dataset.k,fs)});
+  $("#tarikh").onchange=e=>patch(rid,{tarikh:e.target.value},300);
+  $("#pegawai").oninput=e=>patch(rid,{pegawai:e.target.value});
+  const lain=$("#lain");if(lain)lain.oninput=e=>patch(rid,{lain:e.target.value});
+  $("#b-sum").onclick=()=>openSummary(rid);
+  $("#b-pdf").onclick=e=>makePDF(rid,e.currentTarget);
+  $("#b-done").onclick=()=>{const done=(report(rid)||{}).status==="selesai";patch(rid,{status:done?"draf":"selesai"},200);applyState(rid);toast(done?"Dibuka semula sebagai draf.":"Ditanda selesai.")};
   $("#tarikh").value=today();
-  applyState(pid,true);
-  refreshReport(pid,false);
+  applyState(rid,true);
+  refreshReport(rid,false);
+  const other=ridOf(pid,f==="A"?"L":"A");if(!photos[other])refreshReport(other,true);
 }
-function applyState(pid,first){
-  if(view.screen!=="form"||view.pid!==pid)return;
-  const r=report(pid)||{},act=document.activeElement;
-  const setv=(el,v)=>{if(!el||el===act)return;if(first&&el.id==="tarikh"&&!v)return;if(el.value!==(v||""))el.value=v||""};
+function applyState(rid,first){
+  if(view.screen!=="form"||view.rid!==rid)return;
+  const r=report(rid)||{},act=document.activeElement;
+  const setv=(el,v)=>{if(!el||el===act)return;if(el.id==="tarikh"&&!v)return;if(el.value!==(v||""))el.value=v||""};
   setv($("#tarikh"),r.tarikh);setv($("#pegawai"),r.pegawai);setv($("#lain"),r.lain);
-  PERKARA.forEach(p=>{setv($("#t-"+p.k),item(r,p.k).c);refreshCard(p.k);renderPhotos(p.k)});
+  itemsOf(rid).forEach(d=>{const it=item(r,d.k);setv($("#t-"+d.k),it.c);(d.nums||[]).forEach(n=>setv($(`#v-${d.k}-${n.f}`),(it.v||{})[n.f]));refreshCard(d.k);renderPhotos(d.k)});
   const b=$("#b-done");if(b){const done=r.status==="selesai";b.className="btn "+(done?"done":"primary");b.innerHTML=done?ICON.check+"Selesai":"Tanda selesai"}
   const u=$("#upd");if(u)u.textContent=r.updatedAt?`Kemas kini terakhir ${fmtTime(r.updatedAt)}${r.updatedBy?" oleh "+r.updatedBy:""}`:"";
-  updateSync();
+  updateTabs();updateSync();
 }
-function refreshCard(k){const el=$("#c-"+k);if(!el)return;const it=item(report(view.pid),k);el.dataset.st=it.s||"";
-  el.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===it.s)))}
+function updateTabs(){if(view.screen!=="form")return;const pid=pidOf(view.rid);
+  ["L","A"].forEach(f=>{const el=$("#tab-"+f);if(!el)return;const rid=ridOf(pid,f),pr=progress(rid),st=statusOf(rid);el.textContent=st==="selesai"?"Selesai":`${pr.n}/${pr.tot}`})}
+function refreshCard(k){
+  const rid=view.rid,el=$("#c-"+k);if(!el)return;const it=item(report(rid),k);
+  if(fOf(rid)==="L"){el.dataset.st=it.s||"";el.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===it.s)))}
+  else{el.dataset.st=filled(rid,report(rid),k)?"isi":"";
+    el.querySelectorAll(".opts").forEach(g=>g.querySelectorAll(".opt").forEach(b=>b.setAttribute("aria-pressed",String(g.dataset.set==="s"?it.s===b.dataset.o:(it.m||[]).includes(b.dataset.o)))))}
+}
 function renderPhotos(k){
   const el=$("#p-"+k);if(!el||view.screen!=="form")return;
-  const ps=photoList(view.pid).filter(p=>p.k===k);
+  const ps=photoList(view.rid).filter(p=>p.k===k);
   el.innerHTML=ps.map((p,i)=>`<button type="button" class="ph${p.busy?" busy":""}" data-i="${i}" aria-label="Lihat gambar ${i+1}"><img loading="lazy" alt="" src="${esc(p.thumb)}">${p.queued?`<span class="q">${p.busy?"Menghantar":"Belum dihantar"}</span>`:""}</button>`).join("");
-  el.onclick=e=>{const b=e.target.closest(".ph");if(b)openPhoto(view.pid,k,+b.dataset.i)};
+  el.onclick=e=>{const b=e.target.closest(".ph");if(b)openPhoto(view.rid,k,+b.dataset.i)};
   el.hidden=!ps.length;
 }
-function openPhoto(pid,k,i){
-  const ps=photoList(pid).filter(p=>p.k===k),p=ps[i];if(!p)return;const per=PERKARA.find(x=>x.k===k);
+function openPhoto(rid,k,i){
+  const ps=photoList(rid).filter(p=>p.k===k),p=ps[i];if(!p)return;const d=defOf(rid,k);
   const L=$("#layer");let confirmDel=false;
-  const draw=()=>{L.innerHTML=`<div class="ov" role="dialog" aria-label="Gambar"><div class="img"><img id="ovimg" class="loading" src="${esc(p.thumb)}" alt="${esc(per.t)}"></div>
-    <div class="bt"><span class="cap">${esc(per.n+". "+per.t)} · ${i+1}/${ps.length}${p.by?" · "+esc(p.by):""}</span><span style="display:flex;gap:8px">
+  const draw=()=>{L.innerHTML=`<div class="ov" role="dialog" aria-label="Gambar"><div class="img"><img id="ovimg" class="loading" src="${esc(p.thumb)}" alt="${esc(d.t)}"></div>
+    <div class="bt"><span class="cap">${esc(d.n+". "+d.t)} · ${i+1}/${ps.length}${p.by?" · "+esc(p.by):""}</span><span style="display:flex;gap:8px">
     <button class="btn ${confirmDel?"danger":""}" id="ov-del">${confirmDel?"Sahkan padam":"Padam"}</button><button class="btn" id="ov-x">Tutup</button></span></div></div>`;
-    $("#ov-x").onclick=close;$("#ov-del").onclick=async()=>{if(!confirmDel){confirmDel=true;draw();return}if(await deletePhoto(pid,p)){close();toast("Gambar dipadam.")}};
+    $("#ov-x").onclick=close;$("#ov-del").onclick=async()=>{if(!confirmDel){confirmDel=true;draw();return}if(await deletePhoto(rid,p)){close();toast("Gambar dipadam.")}};
     $(".ov .img").onclick=e=>{if(e.target.classList.contains("img"))close()};
-    getFull(p).then(d=>{const im=$("#ovimg");if(im&&d){im.src=d;im.classList.remove("loading")}}).catch(()=>{const im=$("#ovimg");if(im)im.classList.remove("loading")})};
+    getFull(p).then(src=>{const im=$("#ovimg");if(im&&src){im.src=src;im.classList.remove("loading")}}).catch(()=>{const im=$("#ovimg");if(im)im.classList.remove("loading")})};
   const close=()=>{L.innerHTML="";document.removeEventListener("keydown",esck)};const esck=e=>{if(e.key==="Escape")close()};
   document.addEventListener("keydown",esck);draw();
 }
 
+/* ======================= JAWAPAN BORANG A (teks) ======================= */
+function answerA(d,it){
+  const parts=[];
+  if(d.opts&&!d.multi&&it.s)parts.push(it.s.toUpperCase());
+  if(d.multi&&it.m&&it.m.length)parts.push(it.m.join(", "));
+  if(d.sub&&it.m&&it.m.length)parts.push((d.opts?d.subLabel+": ":(d.subLabel||"")+": ")+it.m.join(", "));
+  if(d.nums){const v=it.v||{};const ns=d.nums.filter(n=>String(v[n.f]||"").trim()).map(n=>d.nums.length>1||d.opts?`${n.l}: ${v[n.f]}`:String(v[n.f]));if(ns.length)parts.push(ns.join(", "))}
+  if(it.c&&it.c.trim())parts.push(it.c.trim());
+  return parts.join(". ");
+}
+const questionA=d=>d.t+(d.opts?` (${d.opts.join(" / ").toUpperCase()})`:"")+(d.h?` - ${d.h}`:"")+(d.nota?`\nNota: ${d.nota}`:"");
+
 /* ======================= RINGKASAN ======================= */
-function summaryText(pid){const P=proj(pid),r=report(pid)||{};
+function summaryText(rid){
+  const P=proj(pidOf(rid)),r=report(rid)||{},f=fOf(rid);
+  if(f==="A"){
+    const L=[`*BORANG A – RMKe13 RP1 / BPN3*`,`_Maklumat Am Sekolah_`,``,`Sekolah: ${P.sekolah}${P.kod?` (${P.kod})`:""}`,`PPD: ${P.ppd||"-"}`,`Tarikh: ${fmtDate(r.tarikh)}`];
+    if(r.pegawai)L.push(`Pegawai: ${r.pegawai}`);L.push("");
+    SOALAN.filter(d=>!d.hdr).forEach(d=>{const n=photoCount(rid,d.k);L.push(`${d.n}. ${d.t}: ${answerA(d,item(r,d.k))||"-"}${n?` [${n} gambar]`:""}`)});
+    return L.join("\n");
+  }
   const L=[`*LAPORAN LAWATAN TAPAK PROJEK*`,``,`Projek: ${P.nama}`,`Kod: ${P.kod||"-"}`,`Sekolah: ${P.sekolah}`,`PPD: ${P.ppd||"-"}`,`Tarikh lawatan: ${fmtDate(r.tarikh)}`];
   if(r.pegawai)L.push(`Pegawai: ${r.pegawai}`);L.push("");
-  PERKARA.forEach(p=>{if(p.n==="10a")L.push("10. Penyuraian");const it=item(r,p.k),n=photoCount(pid,p.k);
+  PERKARA.forEach(p=>{if(p.n==="10a")L.push("10. Penyuraian");const it=item(r,p.k),n=photoCount(rid,p.k);
     const nm=p.other&&r.lain?`Lain-lain (${r.lain})`:p.t+(p.h&&!p.other?` (${p.h})`:"");
     L.push(`${p.g?"   "+p.n.slice(2):p.n}. ${nm}: ${it.s?STATUS[it.s]:"-"}${it.c&&it.c.trim()?" — "+it.c.trim():""}${n?` [${n} gambar]`:""}`)});
-  const pr=progress(pid);if(pr.a)L.push("",`Perkara perlu tindakan: ${pr.a}`);return L.join("\n")}
-function openSummary(pid){
-  const txt=summaryText(pid),L=$("#layer");
+  const pr=progress(rid);if(pr.a)L.push("",`Perkara perlu tindakan: ${pr.a}`);return L.join("\n");
+}
+function openSummary(rid){
+  const txt=summaryText(rid),L=$("#layer");
   L.innerHTML=`<div class="modal"><div class="sheet"><h3>Ringkasan</h3><textarea id="sumtxt" readonly style="min-height:260px">${esc(txt)}</textarea>
     <div class="row"><button class="btn" id="sx">Tutup</button><button class="btn" id="sc">${ICON.copy}Salin</button><a class="btn wa" href="https://wa.me/?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">WhatsApp</a></div></div></div>`;
   $("#sx").onclick=()=>L.innerHTML="";
@@ -566,44 +686,85 @@ function openSummary(pid){
 }
 
 /* ======================= PDF ======================= */
-const clean=s=>String(s||"").replace(/[–—]/g,"-").replace(/…/g,"...").replace(/[‘’]/g,"'");
-async function makePDF(pid,btn){
+const clean=s=>String(s||"").replace(/[–—]/g,"-").replace(/…/g,"...").replace(/[‘’]/g,"'").replace(/✓/g,"");
+function pdfKit(doc){
+  const W=210,M=15,CW=W-2*M,BOT=282;const st={y:M};
+  const page=need=>{if(st.y+need>BOT){doc.addPage();st.y=M;return true}return false};
+  return{W,M,CW,BOT,st,page};
+}
+async function addPhotoAppendix(doc,K,rid,items,btn,skip){
+  const all=photoList(rid).filter(p=>!skip||p.k!==skip);if(!all.length)return;
+  const r=report(rid)||{};
+  doc.addPage();K.st.y=K.M;doc.setFont("helvetica","bold");doc.setFontSize(12);doc.text("LAMPIRAN GAMBAR",K.M,K.st.y+5);K.st.y+=11;doc.setFontSize(10);
+  const gw=(K.CW-6)/2;let done=0;
+  for(const d of items){const ps=all.filter(x=>x.k===d.k);if(!ps.length)continue;
+    K.page(14);doc.setFont("helvetica","bold");doc.text(doc.splitTextToSize(clean(`${d.n}. ${d.other&&r.lain?"Lain-lain: "+r.lain:d.t}`),K.CW),K.M,K.st.y+4);K.st.y+=7;
+    for(let i=0;i<ps.length;i+=2){
+      const imgs=[];
+      for(const ph of ps.slice(i,i+2)){btn.textContent=`Gambar ${++done}/${all.length}`;let src;try{src=await getFull(ph)}catch(e){src=ph.thumb}if(!src)src=ph.thumb;const im=await loadImg(src);imgs.push({src,w:im.naturalWidth,h:im.naturalHeight})}
+      const h=Math.max(...imgs.map(m=>gw*m.h/m.w));K.page(h+4);imgs.forEach((m,j)=>doc.addImage(m.src,"JPEG",K.M+j*(gw+6),K.st.y,gw,gw*m.h/m.w));K.st.y+=h+4}
+    K.st.y+=3}
+}
+function footer(doc,K,P,label){const n=doc.getNumberOfPages();doc.setFontSize(8);doc.setFont("helvetica","normal");
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.text(clean(`${label} - ${P.kod||P.id} - ${P.sekolah}`),K.M,292);doc.text(`Muka ${i}/${n}`,K.W-K.M,292,{align:"right"})}}
+
+async function makePDF(rid,btn){
   if(!window.jspdf)return toast("Modul PDF belum dimuatkan. Pastikan ada talian dan cuba lagi.");
   btn.disabled=true;const old=btn.innerHTML;btn.textContent="Menjana…";
   try{
-    const{jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"});
-    const P=proj(pid),r=report(pid)||{};const W=210,M=15,CW=W-2*M,BOT=282;let y=M;
-    const page=need=>{if(y+need>BOT){doc.addPage();y=M}};
-    doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text("LAPORAN LAWATAN TAPAK PROJEK",W/2,y+5,{align:"center"});y+=12;doc.setFontSize(10);
-    for(const[l,v]of[["NAMA PROJEK",P.nama],["KOD SEKOLAH",P.kod||"-"],["NAMA SEKOLAH",P.sekolah],["PPD",P.ppd||"-"],["TARIKH LAWATAN",fmtDate(r.tarikh)],["PEGAWAI",r.pegawai||"-"]]){
-      doc.setFont("helvetica","normal");const lines=doc.splitTextToSize(clean(v),CW-42),h=Math.max(8,lines.length*4.6+3.4);page(h);
-      doc.rect(M,y,40,h);doc.rect(M+40,y,CW-40,h);doc.setFont("helvetica","bold");doc.text(l,M+2,y+5.3);doc.setFont("helvetica","normal");doc.text(lines,M+42,y+5.3);y+=h}
-    y+=6;const c1=58,c2=30,c3=CW-c1-c2;
-    const head=()=>{page(9);doc.setFillColor(225,225,225);doc.rect(M,y,CW,8,"FD");doc.setFont("helvetica","bold");doc.text("Perkara",M+2,y+5.4);doc.text("Status",M+c1+2,y+5.4);doc.text("Catatan",M+c1+c2+2,y+5.4);y+=8};
-    head();
-    const row=(nm,st,cat,bold)=>{doc.setFont("helvetica",bold?"bold":"normal");const a=doc.splitTextToSize(clean(nm),c1-4);doc.setFont("helvetica","normal");const b=doc.splitTextToSize(clean(st),c2-4),c=doc.splitTextToSize(clean(cat),c3-4);
-      const h=Math.max(a.length,b.length,c.length)*4.6+3.4;if(y+h>BOT){doc.addPage();y=M;head()}
-      doc.rect(M,y,c1,h);doc.rect(M+c1,y,c2,h);doc.rect(M+c1+c2,y,c3,h);doc.setFont("helvetica",bold?"bold":"normal");doc.text(a,M+2,y+5.3);doc.setFont("helvetica","normal");doc.text(b,M+c1+2,y+5.3);doc.text(c,M+c1+c2+2,y+5.3);y+=h};
-    PERKARA.forEach(p=>{if(p.n==="10a")row("10. Penyuraian","","",true);const it=item(r,p.k),n=photoCount(pid,p.k);
-      const nm=(p.g?"   - ":p.n+". ")+(p.other?"Lain-lain"+(r.lain?": "+r.lain:""):p.t+(p.h?` (${p.h})`:""));
-      row(nm,it.s?STATUS[it.s]:"-",(it.c&&it.c.trim()?it.c.trim():"-")+(n?`\n[${n} gambar - rujuk lampiran]`:""))});
-    const all=photoList(pid);
-    if(all.length){
-      doc.addPage();y=M;doc.setFont("helvetica","bold");doc.setFontSize(12);doc.text("LAMPIRAN GAMBAR",M,y+5);y+=11;doc.setFontSize(10);
-      const gw=(CW-6)/2;let done=0;
-      for(const p of PERKARA){const ps=all.filter(x=>x.k===p.k);if(!ps.length)continue;
-        page(14);doc.setFont("helvetica","bold");doc.text(clean(`${p.n}. ${p.other&&r.lain?"Lain-lain: "+r.lain:p.t}`),M,y+4);y+=7;
-        for(let i=0;i<ps.length;i+=2){
-          const imgs=[];
-          for(const ph of ps.slice(i,i+2)){btn.textContent=`Gambar ${++done}/${all.length}`;let d;try{d=await getFull(ph)}catch(e){d=ph.thumb}if(!d)d=ph.thumb;const im=await loadImg(d);imgs.push({d,w:im.naturalWidth,h:im.naturalHeight})}
-          const h=Math.max(...imgs.map(m=>gw*m.h/m.w));page(h+4);imgs.forEach((m,j)=>doc.addImage(m.d,"JPEG",M+j*(gw+6),y,gw,gw*m.h/m.w));y+=h+4}
-        y+=3}}
-    const n=doc.getNumberOfPages();doc.setFontSize(8);doc.setFont("helvetica","normal");
-    for(let i=1;i<=n;i++){doc.setPage(i);doc.text(clean(`${P.kod||P.id} - ${P.sekolah}`),M,292);doc.text(`Muka ${i}/${n}`,W-M,292,{align:"right"})}
-    const name=`Laporan_Lawatan_Tapak_${P.kod||P.id}.pdf`,blob=doc.output("blob");
-    openPdfSheet(blob,name);
+    const{jsPDF}=window.jspdf,doc=new jsPDF({unit:"mm",format:"a4"}),K=pdfKit(doc),P=proj(pidOf(rid)),f=fOf(rid);
+    if(f==="A")await pdfBorangA(doc,K,rid,P,btn);else await pdfLawatan(doc,K,rid,P,btn);
+    footer(doc,K,P,f==="A"?"Borang A RMKe13":"Laporan Lawatan Tapak");
+    const name=`${f==="A"?"Borang_A_RMKe13":"Laporan_Lawatan_Tapak"}_${P.kod||P.id}.pdf`;
+    openPdfSheet(doc.output("blob"),name);
   }catch(e){toast("PDF tidak dapat dijana: "+(e.message||"ralat"))}
   btn.disabled=false;btn.innerHTML=old;
+}
+async function pdfLawatan(doc,K,rid,P,btn){
+  const r=report(rid)||{},{M,CW,W}=K;
+  doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text("LAPORAN LAWATAN TAPAK PROJEK",W/2,K.st.y+5,{align:"center"});K.st.y+=12;doc.setFontSize(10);
+  for(const[l,v]of[["NAMA PROJEK",P.nama],["KOD SEKOLAH",P.kod||"-"],["NAMA SEKOLAH",P.sekolah],["PPD",P.ppd||"-"],["TARIKH LAWATAN",fmtDate(r.tarikh)],["PEGAWAI",r.pegawai||"-"]]){
+    doc.setFont("helvetica","normal");const lines=doc.splitTextToSize(clean(v),CW-42),h=Math.max(8,lines.length*4.6+3.4);K.page(h);
+    doc.rect(M,K.st.y,40,h);doc.rect(M+40,K.st.y,CW-40,h);doc.setFont("helvetica","bold");doc.text(l,M+2,K.st.y+5.3);doc.setFont("helvetica","normal");doc.text(lines,M+42,K.st.y+5.3);K.st.y+=h}
+  K.st.y+=6;const c1=58,c2=30,c3=CW-c1-c2;
+  const head=()=>{K.page(9);doc.setFillColor(225,225,225);doc.rect(M,K.st.y,CW,8,"FD");doc.setFont("helvetica","bold");doc.text("Perkara",M+2,K.st.y+5.4);doc.text("Status",M+c1+2,K.st.y+5.4);doc.text("Catatan",M+c1+c2+2,K.st.y+5.4);K.st.y+=8};
+  head();
+  const row=(nm,stt,cat,bold)=>{doc.setFont("helvetica",bold?"bold":"normal");const a=doc.splitTextToSize(clean(nm),c1-4);doc.setFont("helvetica","normal");const b=doc.splitTextToSize(clean(stt),c2-4),c=doc.splitTextToSize(clean(cat),c3-4);
+    const h=Math.max(a.length,b.length,c.length)*4.6+3.4;if(K.page(h))head();
+    doc.rect(M,K.st.y,c1,h);doc.rect(M+c1,K.st.y,c2,h);doc.rect(M+c1+c2,K.st.y,c3,h);doc.setFont("helvetica",bold?"bold":"normal");doc.text(a,M+2,K.st.y+5.3);doc.setFont("helvetica","normal");doc.text(b,M+c1+2,K.st.y+5.3);doc.text(c,M+c1+c2+2,K.st.y+5.3);K.st.y+=h};
+  PERKARA.forEach(p=>{if(p.n==="10a")row("10. Penyuraian","","",true);const it=item(r,p.k),n=photoCount(rid,p.k);
+    const nm=(p.g?"   - ":p.n+". ")+(p.other?"Lain-lain"+(r.lain?": "+r.lain:""):p.t+(p.h?` (${p.h})`:""));
+    row(nm,it.s?STATUS[it.s]:"-",(it.c&&it.c.trim()?it.c.trim():"-")+(n?`\n[${n} gambar - rujuk lampiran]`:""))});
+  await addPhotoAppendix(doc,K,rid,PERKARA,btn);
+}
+async function pdfBorangA(doc,K,rid,P,btn){
+  const r=report(rid)||{},{M,CW,W}=K;let y=M;
+  doc.setFont("helvetica","bold");doc.setFontSize(10.5);doc.text("BORANG A - RMKe13 RP1 / BPN3",W-M,y+4,{align:"right"});
+  // Kotak cop sekolah
+  const bw=52,bh=30,bx=W-M-bw,by=y+7;doc.setLineWidth(0.6);doc.rect(bx,by,bw,bh);doc.setLineWidth(0.2);
+  const cop=photoList(rid).find(p=>p.k==="a_cop");
+  if(cop){try{let src=await getFull(cop).catch(()=>cop.thumb);src=src||cop.thumb;const im=await loadImg(src);const sc=Math.min((bw-4)/im.naturalWidth,(bh-8)/im.naturalHeight);const iw=im.naturalWidth*sc,ih=im.naturalHeight*sc;doc.addImage(src,"JPEG",bx+(bw-iw)/2,by+2,iw,ih)}catch(e){}}
+  doc.setFont("helvetica","normal");doc.setFontSize(8);doc.text("COP SEKOLAH",bx+bw-2,by+bh-2,{align:"right"});
+  doc.setFontSize(10.5);doc.setFont("helvetica","bold");doc.text("MAKLUMAT AM SEKOLAH",M+8,y+12);
+  const lw=CW-bw-14;
+  doc.text("Nama Sekolah :",M+8,y+20);doc.setFont("helvetica","normal");const sl=doc.splitTextToSize(clean(P.sekolah+(P.kod?` (${P.kod})`:"")),lw-30);doc.text(sl,M+38,y+20);
+  let yy=y+20+sl.length*4.6+2.4;doc.setFont("helvetica","bold");doc.text("Tarikh :",M+8,yy);doc.setFont("helvetica","normal");doc.text(fmtDate(r.tarikh),M+38,yy);
+  if(r.pegawai){yy+=7;doc.setFont("helvetica","bold");doc.text("Pegawai :",M+8,yy);doc.setFont("helvetica","normal");const pl=doc.splitTextToSize(clean(r.pegawai),lw-30);doc.text(pl,M+38,yy);yy+=(pl.length-1)*4.6}
+  K.st.y=Math.max(yy+6,by+bh+5);
+  doc.setFontSize(9.5);const c1=11,c2=86,c3=CW-c1-c2;
+  const head=()=>{K.page(8);doc.setFillColor(225,225,225);doc.rect(M,K.st.y,CW,7,"FD");doc.setFont("helvetica","bold");doc.text("Bil.",M+c1/2,K.st.y+4.8,{align:"center"});doc.text("Soalan",M+c1+c2/2,K.st.y+4.8,{align:"center"});doc.text("Catatan",M+c1+c2+c3/2,K.st.y+4.8,{align:"center"});K.st.y+=7};
+  head();
+  SOALAN.filter(d=>!d.hdr).forEach(d=>{
+    const it=item(r,d.k),n=photoCount(rid,d.k);
+    const qa=doc.splitTextToSize(clean(questionA(d)),c2-4);
+    const ans=(answerA(d,it)||"")+(n?`${answerA(d,it)?"\n":""}[${n} gambar - rujuk lampiran]`:"");
+    const ca=doc.splitTextToSize(clean(ans),c3-4);
+    const h=Math.max(qa.length,ca.length,1)*4.3+4.2;if(K.page(h))head();
+    const yT=K.st.y;doc.rect(M,yT,c1,h);doc.rect(M+c1,yT,c2,h);doc.rect(M+c1+c2,yT,c3,h);
+    doc.setFont("helvetica","normal");doc.text(d.n,M+c1/2,yT+5,{align:"center"});doc.text(qa,M+c1+2,yT+5);
+    doc.setFont("helvetica","bold");doc.text(ca,M+c1+c2+2,yT+5);K.st.y+=h});
+  doc.setFontSize(10);
+  await addPhotoAppendix(doc,K,rid,SOALAN,btn,"a_cop");
 }
 function openPdfSheet(blob,name){
   const url=URL.createObjectURL(blob),file=new File([blob],name,{type:"application/pdf"});
@@ -631,14 +792,15 @@ function openAddProject(){
 }
 
 /* ======================= LALUAN ======================= */
+function parseHash(){const h=decodeURIComponent(location.hash.slice(1));if(!h)return null;const[id,f]=h.split("/");return{id,f:f==="A"?"A":"L"}}
 function route(){
   if(!auth){renderLogin();return}
-  const id=decodeURIComponent(location.hash.slice(1));
+  const h=parseHash();
   $("#layer").innerHTML="";
-  if(id&&proj(id)){view={screen:"form",pid:id};renderForm(id);window.scrollTo(0,0)}
-  else{view={screen:"list",pid:null};renderList()}
+  if(h&&proj(h.id)){const rid=ridOf(h.id,h.f);view={screen:"form",rid};filt.f=h.f;store.set("llt.f",h.f);renderForm(rid);window.scrollTo(0,0)}
+  else{view={screen:"list",rid:null};renderList()}
 }
-function rerender(){const id=decodeURIComponent(location.hash.slice(1));if(view.screen==="form"&&proj(view.pid))applyState(view.pid);else if(id&&proj(id))route();else{view={screen:"list",pid:null};renderList()}}
+function rerender(){const h=parseHash();if(view.screen==="form"&&proj(pidOf(view.rid)))applyState(view.rid);else if(h&&proj(h.id))route();else{view={screen:"list",rid:null};renderList()}}
 window.addEventListener("hashchange",()=>{clearTimeout(flushT);if(pendingCount())sync();route()});
 
 async function startApp(){
