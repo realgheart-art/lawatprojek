@@ -204,7 +204,7 @@ textarea{resize:vertical;min-height:88px;line-height:1.45}
 <script>
 /* ======================= KONFIGURASI ======================= */
 const API_URL = "https://script.google.com/macros/s/AKfycbwWFKiTZNxg8mwqAklMCfiiOuvAND70vbJWY07hv2fanjwEZu3Gf-5Kh8ZEeL54h4A/exec"; // ← Tampal URL Web App (/exec) daripada Code.gs di sini
-const APP_VER = "1.1.0";
+const APP_VER = "1.1.1";
 
 /* ======================= DATA BORANG ======================= */
 const PPD_KEDAH=["Baling","Bandar Baharu","Kota Setar","Kuala Muda","Kubang Pasu","Kulim","Langkawi","Padang Terap","Pendang","Pokok Sena","Sik","Yan"];
@@ -233,7 +233,7 @@ const YT=["Ya","Tidak"], AT=["Ada","Tiada"];
 const SOALAN=[
  {k:"a_cop",n:"Cop",t:"Cop Sekolah",h:"Ambil gambar cop sekolah yang telah dicop pada borang atau kertas",hdr:1},
  {k:"a_banjir",n:"1",t:"Sejarah Kawasan Banjir",opts:YT},
- {k:"a_tekanan_air",n:"2",t:"Status Tekanan Air",opts:["Kerap terputus","Tekanan kuat","Tekanan rendah"],multi:1},
+ {k:"a_tekanan_air",n:"2",t:"Status Tekanan Air",opts:["Kerap terputus","Tekanan kuat","Tekanan sederhana","Tekanan rendah"],multi:1},
  {k:"a_elektrik_status",n:"3",t:"Status Bekalan Elektrik Sediada/Semasa",opts:["Kerap terputus","Litar pintas (trip)","Tiada masalah"],multi:1,x:"Tiada masalah"},
  {k:"a_pili",n:"4",t:"Bilangan Fire Hydrant (Pili Bomba)",nums:[{f:"bil",l:"Bilangan pili bomba"}]},
  {k:"a_kebakaran",n:"5",t:"Status Sistem Pencegah Kebakaran",opts:["Sprinkler","Pili bomba","Pemadam api"],multi:1},
