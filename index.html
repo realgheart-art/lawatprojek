@@ -204,7 +204,7 @@ textarea{resize:vertical;min-height:88px;line-height:1.45}
 <script>
 /* ======================= KONFIGURASI ======================= */
 const API_URL = "https://script.google.com/macros/s/AKfycbwWFKiTZNxg8mwqAklMCfiiOuvAND70vbJWY07hv2fanjwEZu3Gf-5Kh8ZEeL54h4A/exec"; // ← Tampal URL Web App (/exec) daripada Code.gs di sini
-const APP_VER = "1.1.1";
+const APP_VER = "1.2.0";
 
 /* ======================= DATA BORANG ======================= */
 const PPD_KEDAH=["Baling","Bandar Baharu","Kota Setar","Kuala Muda","Kubang Pasu","Kulim","Langkawi","Padang Terap","Pendang","Pokok Sena","Sik","Yan"];
@@ -579,6 +579,11 @@ function renderForm(rid){
     </div>
     <div class="upd" id="upd"></div>
     ${body}
+    <div class="group"><h3>Catatan</h3><span>Catatan keseluruhan pegawai</span></div>
+    <div class="cards"><section class="card" id="c-_catatan">
+      <div class="field"><label for="t-_catatan">Catatan pegawai</label>
+      <textarea id="t-_catatan" data-k="_catatan" style="min-height:150px" placeholder="${f==="A"?"Contoh: maklumat yang belum lengkap, dokumen yang perlu dihantar sekolah, isu tambahan":"Contoh: rumusan lawatan, isu utama, tindakan susulan dan pihak bertanggungjawab"}"></textarea></div>
+    </section></div>
   </div>
   <div class="actions"><div class="in">
     <div class="save" id="savestate"></div>
@@ -615,7 +620,7 @@ function applyState(rid,first){
   if(view.screen!=="form"||view.rid!==rid)return;
   const r=report(rid)||{},act=document.activeElement;
   const setv=(el,v)=>{if(!el||el===act)return;if(el.id==="tarikh"&&!v)return;if(el.value!==(v||""))el.value=v||""};
-  setv($("#tarikh"),r.tarikh);setv($("#pegawai"),r.pegawai);setv($("#lain"),r.lain);
+  setv($("#tarikh"),r.tarikh);setv($("#pegawai"),r.pegawai);setv($("#lain"),r.lain);setv($("#t-_catatan"),item(r,"_catatan").c);
   itemsOf(rid).forEach(d=>{const it=item(r,d.k);setv($("#t-"+d.k),it.c);(d.nums||[]).forEach(n=>setv($(`#v-${d.k}-${n.f}`),(it.v||{})[n.f]));refreshCard(d.k);renderPhotos(d.k)});
   const b=$("#b-done");if(b){const done=r.status==="selesai";b.className="btn "+(done?"done":"primary");b.innerHTML=done?ICON.check+"Selesai":"Tanda selesai"}
   const u=$("#upd");if(u)u.textContent=r.updatedAt?`Kemas kini terakhir ${fmtTime(r.updatedAt)}${r.updatedBy?" oleh "+r.updatedBy:""}`:"";
@@ -668,6 +673,7 @@ function summaryText(rid){
     const L=[`*BORANG A – RMKe13 RP1 / BPN3*`,`_Maklumat Am Sekolah_`,``,`Sekolah: ${P.sekolah}${P.kod?` (${P.kod})`:""}`,`PPD: ${P.ppd||"-"}`,`Tarikh: ${fmtDate(r.tarikh)}`];
     if(r.pegawai)L.push(`Pegawai: ${r.pegawai}`);L.push("");
     SOALAN.filter(d=>!d.hdr).forEach(d=>{const n=photoCount(rid,d.k);L.push(`${d.n}. ${d.t}: ${answerA(d,item(r,d.k))||"-"}${n?` [${n} gambar]`:""}`)});
+    const ct=(item(r,"_catatan").c||"").trim();if(ct)L.push("","*Catatan:*",ct);
     return L.join("\n");
   }
   const L=[`*LAPORAN LAWATAN TAPAK PROJEK*`,``,`Projek: ${P.nama}`,`Kod: ${P.kod||"-"}`,`Sekolah: ${P.sekolah}`,`PPD: ${P.ppd||"-"}`,`Tarikh lawatan: ${fmtDate(r.tarikh)}`];
@@ -675,7 +681,9 @@ function summaryText(rid){
   PERKARA.forEach(p=>{if(p.n==="10a")L.push("10. Penyuraian");const it=item(r,p.k),n=photoCount(rid,p.k);
     const nm=p.other&&r.lain?`Lain-lain (${r.lain})`:p.t+(p.h&&!p.other?` (${p.h})`:"");
     L.push(`${p.g?"   "+p.n.slice(2):p.n}. ${nm}: ${it.s?STATUS[it.s]:"-"}${it.c&&it.c.trim()?" — "+it.c.trim():""}${n?` [${n} gambar]`:""}`)});
-  const pr=progress(rid);if(pr.a)L.push("",`Perkara perlu tindakan: ${pr.a}`);return L.join("\n");
+  const pr=progress(rid);if(pr.a)L.push("",`Perkara perlu tindakan: ${pr.a}`);
+  const ct=(item(r,"_catatan").c||"").trim();if(ct)L.push("","*Catatan:*",ct);
+  return L.join("\n");
 }
 function openSummary(rid){
   const txt=summaryText(rid),L=$("#layer");
@@ -720,6 +728,23 @@ async function makePDF(rid,btn){
   }catch(e){toast("PDF tidak dapat dijana: "+(e.message||"ralat"))}
   btn.disabled=false;btn.innerHTML=old;
 }
+function pdfCatatan(doc,K,rid){
+  const txt=(item(report(rid),"_catatan").c||"").trim(),{M,CW}=K;
+  doc.setFontSize(10);K.st.y+=6;K.page(20);
+  doc.setFont("helvetica","bold");doc.text("CATATAN",M,K.st.y+4);K.st.y+=6;
+  doc.setFont("helvetica","normal");
+  const lines=txt?doc.splitTextToSize(clean(txt),CW-6):[];
+  const minH=28;let i=0;
+  if(!lines.length){K.page(minH);doc.rect(M,K.st.y,CW,minH);K.st.y+=minH;return}
+  while(i<lines.length){
+    const room=Math.floor((K.BOT-K.st.y-6)/4.6);
+    if(room<2){doc.addPage();K.st.y=K.M;continue}
+    const chunk=lines.slice(i,i+room);i+=chunk.length;
+    const h=Math.max(chunk.length*4.6+6,i>=lines.length?minH:0);
+    doc.rect(M,K.st.y,CW,h);doc.text(chunk,M+3,K.st.y+6);K.st.y+=h;
+    if(i<lines.length){doc.addPage();K.st.y=K.M}
+  }
+}
 async function pdfLawatan(doc,K,rid,P,btn){
   const r=report(rid)||{},{M,CW,W}=K;
   doc.setFont("helvetica","bold");doc.setFontSize(14);doc.text("LAPORAN LAWATAN TAPAK PROJEK",W/2,K.st.y+5,{align:"center"});K.st.y+=12;doc.setFontSize(10);
@@ -735,6 +760,7 @@ async function pdfLawatan(doc,K,rid,P,btn){
   PERKARA.forEach(p=>{if(p.n==="10a")row("10. Penyuraian","","",true);const it=item(r,p.k),n=photoCount(rid,p.k);
     const nm=(p.g?"   - ":p.n+". ")+(p.other?"Lain-lain"+(r.lain?": "+r.lain:""):p.t+(p.h?` (${p.h})`:""));
     row(nm,it.s?STATUS[it.s]:"-",(it.c&&it.c.trim()?it.c.trim():"-")+(n?`\n[${n} gambar - rujuk lampiran]`:""))});
+  pdfCatatan(doc,K,rid);
   await addPhotoAppendix(doc,K,rid,PERKARA,btn);
 }
 async function pdfBorangA(doc,K,rid,P,btn){
@@ -763,7 +789,7 @@ async function pdfBorangA(doc,K,rid,P,btn){
     const yT=K.st.y;doc.rect(M,yT,c1,h);doc.rect(M+c1,yT,c2,h);doc.rect(M+c1+c2,yT,c3,h);
     doc.setFont("helvetica","normal");doc.text(d.n,M+c1/2,yT+5,{align:"center"});doc.text(qa,M+c1+2,yT+5);
     doc.setFont("helvetica","bold");doc.text(ca,M+c1+c2+2,yT+5);K.st.y+=h});
-  doc.setFontSize(10);
+  pdfCatatan(doc,K,rid);
   await addPhotoAppendix(doc,K,rid,SOALAN,btn,"a_cop");
 }
 function openPdfSheet(blob,name){
