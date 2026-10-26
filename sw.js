@@ -1,6 +1,6 @@
 /* Laporan Lawatan Tapak — service worker
  * Naikkan VERSION setiap kali index.html dikemas kini supaya telefon ambil versi baharu. */
-const VERSION = 'llt-v1.1.1';
+const VERSION = 'llt-v1.2.0';
 const SHELL = ['./', './index.html', './manifest.json', './icon.svg'];
 const CDN = ['https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'];
 
